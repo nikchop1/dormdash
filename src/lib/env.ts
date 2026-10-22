@@ -23,12 +23,11 @@ export const env = {
   appSecret: process.env.APP_SECRET || (isProd && process.env.VERCEL ? "" : "dormdash-local-dev-secret-change-me"),
   allowedEmailDomains: list(process.env.ALLOWED_EMAIL_DOMAINS || "nyu.edu"),
   adminEmails: list(process.env.ADMIN_EMAILS),
-  paymentsProvider: (process.env.PAYMENTS_PROVIDER || "demo") as "demo" | "paypal",
-  paypal: {
-    env: (process.env.PAYPAL_ENV || "sandbox") as "sandbox" | "live",
-    clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "",
-    clientSecret: process.env.PAYPAL_CLIENT_SECRET || "",
-    webhookId: process.env.PAYPAL_WEBHOOK_ID || "",
+  paymentsProvider: (process.env.PAYMENTS_PROVIDER || "demo") as "demo" | "stripe",
+  stripe: {
+    secretKey: process.env.STRIPE_SECRET_KEY || "",
+    publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "",
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || "",
   },
   resendApiKey: process.env.RESEND_API_KEY || "",
   emailFrom: process.env.EMAIL_FROM || "Dormdash <hello@dormdash.app>",
@@ -44,9 +43,9 @@ export const authMode: "supabase" | "local" =
 
 export const dbMode: "postgres" | "pglite" = env.databaseUrl ? "postgres" : "pglite";
 
-/** PayPal is only live when the provider is chosen AND credentials are present. */
-export const paymentsMode: "paypal" | "demo" =
-  env.paymentsProvider === "paypal" && env.paypal.clientId && env.paypal.clientSecret ? "paypal" : "demo";
+/** Stripe is only live when the provider is chosen AND keys are present. */
+export const paymentsMode: "stripe" | "demo" =
+  env.paymentsProvider === "stripe" && env.stripe.secretKey && env.stripe.publishableKey ? "stripe" : "demo";
 
 export function assertConfig() {
   const problems: string[] = [];

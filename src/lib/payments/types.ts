@@ -1,29 +1,24 @@
 export type CheckoutInput = {
   orderId: string;
   code: string;
-  deliveryFeeCents: number;
-  tipCents: number;
-  totalCents: number;
-};
-
-export type PayoutItem = { payoutId: string; receiver: string; amountCents: number };
-
-export type PayoutResult = {
-  batchRef: string;
-  items: { payoutId: string; status: "paid" | "processing" | "failed"; ref?: string; error?: string }[];
+  /** What to charge the card (total minus any Dormdash credit). */
+  amountCents: number;
+  customerEmail: string | null;
 };
 
 export interface PaymentsProvider {
-  mode: "paypal" | "demo";
-  /** Create the provider-side checkout. Returns the reference the client approves. */
-  createCheckout(input: CheckoutInput): Promise<{ ref: string }>;
-  /** Capture an approved checkout. */
-  capture(ref: string): Promise<{ status: "succeeded" | "failed"; captureRef?: string; message?: string }>;
-  refund(captureRef: string, amountCents: number, note: string): Promise<{ ref: string }>;
-  payout(items: PayoutItem[], batchId: string): Promise<PayoutResult>;
+  mode: "stripe" | "demo";
+  /** Create the charge. Captured immediately once confirmed: no authorization holds. */
+  createCheckout(input: CheckoutInput): Promise<{ ref: string; clientSecret: string | null }>;
+  /** Confirm the payment went through. Returns the charge reference used for refunds/transfers. */
+  capture(ref: string): Promise<{ status: "succeeded" | "pending" | "failed"; captureRef?: string; message?: string }>;
+  refund(paymentRef: string, amountCents: number, note: string): Promise<{ ref: string }>;
+  /** Pay a runner's connected account right away (no holding period). */
+  transfer(i: { destination: string; amountCents: number; orderId: string | null; sourceCharge: string | null }): Promise<{ ref: string }>;
+  /** Runner payouts setup (Stripe Connect Express: bank + identity verification). */
+  createConnectAccount(email: string): Promise<{ accountId: string }>;
+  onboardingLink(accountId: string, returnUrl: string, refreshUrl: string): Promise<{ url: string }>;
+  accountStatus(accountId: string): Promise<{ payoutsEnabled: boolean; detailsSubmitted: boolean }>;
   /** Verify a webhook delivery. Returns the parsed event or null if it isn't genuine. */
   verifyWebhook(headers: Headers, rawBody: string): Promise<Record<string, unknown> | null>;
 }
-
-export const centsToValue = (c: number) => (c / 100).toFixed(2);
-export const valueToCents = (v: string) => Math.round(parseFloat(v) * 100);

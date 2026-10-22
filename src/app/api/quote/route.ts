@@ -5,8 +5,10 @@ import { quoteSchema } from "@/lib/validation";
 
 // Price preview. The order route recomputes this server-side; nothing here is trusted later.
 export const POST = route(async (req) => {
-  await apiUser();
+  const user = await apiUser();
   const input = await parseJson(req, quoteSchema);
-  const { quote } = await quoteFor(input);
-  return { quote };
+  const { quote } = await quoteFor({ ...input, creditBalanceCents: user.profile.credit_cents });
+  // What the same order would cost as a lobby handoff (floor add-on not charged).
+  const lobby = await quoteFor({ ...input, creditBalanceCents: user.profile.credit_cents, lobby: true });
+  return { quote, lobbyQuote: lobby.quote };
 });

@@ -7,6 +7,7 @@ export type OrderStatus =
   | "picked_up"
   | "on_the_way"
   | "delivered"
+  | "customer_no_show"
   | "cancelled";
 
 export type OrderAction =
@@ -17,6 +18,7 @@ export type OrderAction =
   | "pickup"
   | "depart"
   | "deliver"
+  | "no_show"
   | "cancel";
 
 export type Actor = "customer" | "runner" | "admin" | "system";
@@ -31,6 +33,7 @@ export const STATUS_LABEL: Record<OrderStatus, string> = {
   picked_up: "Picked up",
   on_the_way: "On the way",
   delivered: "Delivered",
+  customer_no_show: "Customer not here",
   cancelled: "Cancelled",
 };
 
@@ -50,18 +53,23 @@ const TRANSITIONS: Record<OrderStatus, Partial<Record<OrderAction, { to: OrderSt
   claimed: {
     unclaim: { to: "requested", actors: ["runner", "admin"] },
     pickup: { to: "picked_up", actors: ["runner"] },
-    cancel: { to: "cancelled", actors: ["customer", "admin"] },
+    cancel: { to: "cancelled", actors: ["customer", "admin", "system"] },
   },
+  // Delivery completes ONLY with the customer's PIN (`deliver`). A runner who did
+  // everything right and waited out the countdown can mark `no_show`.
   picked_up: {
-    depart: { to: "on_the_way", actors: ["runner"] },
+    depart: { to: "on_the_way", actors: ["runner", "system"] },
     deliver: { to: "delivered", actors: ["runner"] },
-    cancel: { to: "cancelled", actors: ["admin"] },
+    no_show: { to: "customer_no_show", actors: ["runner"] },
+    cancel: { to: "cancelled", actors: ["admin", "system"] },
   },
   on_the_way: {
     deliver: { to: "delivered", actors: ["runner"] },
-    cancel: { to: "cancelled", actors: ["admin"] },
+    no_show: { to: "customer_no_show", actors: ["runner"] },
+    cancel: { to: "cancelled", actors: ["admin", "system"] },
   },
   delivered: {},
+  customer_no_show: {},
   cancelled: {},
 };
 
@@ -83,7 +91,7 @@ export function canTransition(status: OrderStatus, action: OrderAction, actor: A
   return !!t && t.actors.includes(actor);
 }
 
-export const isTerminal = (s: OrderStatus) => s === "delivered" || s === "cancelled";
+export const isTerminal = (s: OrderStatus) => s === "delivered" || s === "cancelled" || s === "customer_no_show";
 
 // ---------- cancellations ----------
 

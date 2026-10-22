@@ -18,8 +18,29 @@ type PricingRow = {
   max_active_orders: number;
   free_unclaims_per_week: number;
   tip_presets: number[];
-  payout_hold_hours: number;
-  min_payout_cents: number;
+  size_tiers: PricingSettings["sizeTiers"];
+  bag_fee_cents: number;
+  max_bags: number;
+  guarantee_cents: number;
+  door_countdown_seconds: number;
+  runner_absent_grace_seconds: number;
+  present_window_after_seconds: number;
+  pin_claim_window_seconds: number;
+  missing_delivery_minutes: number;
+  heading_home_radius_miles: number;
+  level_tiers: PricingSettings["levelTiers"];
+  no_show_warn_count: number;
+  no_show_review_count: number;
+  no_show_window_days: number;
+  pattern_window_days: number;
+  pattern_counterparties: number;
+  no_show_rate_pct: number;
+  no_show_rate_min_orders: number;
+  free_problem_reports_per_30d: number;
+  case_response_hours: number;
+  refund_target_hours: number;
+  appeal_days: number;
+  evidence_retention_days: number;
 };
 
 export async function getPricing(): Promise<PricingSettings> {
@@ -41,8 +62,29 @@ export async function getPricing(): Promise<PricingSettings> {
     maxActiveOrders: r.max_active_orders,
     freeUnclaimsPerWeek: r.free_unclaims_per_week,
     tipPresets: (r.tip_presets ?? []).map(Number),
-    payoutHoldHours: r.payout_hold_hours,
-    minPayoutCents: r.min_payout_cents,
+    sizeTiers: r.size_tiers,
+    bagFeeCents: r.bag_fee_cents,
+    maxBags: r.max_bags,
+    guaranteeCents: r.guarantee_cents,
+    doorCountdownSeconds: r.door_countdown_seconds,
+    runnerAbsentGraceSeconds: r.runner_absent_grace_seconds,
+    presentWindowAfterSeconds: r.present_window_after_seconds,
+    pinClaimWindowSeconds: r.pin_claim_window_seconds,
+    missingDeliveryMinutes: r.missing_delivery_minutes,
+    headingHomeRadiusMiles: Number(r.heading_home_radius_miles),
+    levelTiers: r.level_tiers,
+    noShowWarnCount: r.no_show_warn_count,
+    noShowReviewCount: r.no_show_review_count,
+    noShowWindowDays: r.no_show_window_days,
+    patternWindowDays: r.pattern_window_days,
+    patternCounterparties: r.pattern_counterparties,
+    noShowRatePct: r.no_show_rate_pct,
+    noShowRateMinOrders: r.no_show_rate_min_orders,
+    freeProblemReportsPer30d: r.free_problem_reports_per_30d,
+    caseResponseHours: r.case_response_hours,
+    refundTargetHours: r.refund_target_hours,
+    appealDays: r.appeal_days,
+    evidenceRetentionDays: r.evidence_retention_days,
   };
 }
 

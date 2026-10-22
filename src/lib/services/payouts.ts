@@ -1,93 +1,64 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { q, tx } from "@/lib/db";
+import { q, q1, tx } from "@/lib/db";
 import { getPayments } from "@/lib/payments";
-import { getPricing } from "@/lib/settings";
-import { notify } from "@/lib/notify";
 
 /**
- * Pay every runner their available balance (earnings past the dispute hold that
- * aren't in a payout yet). Negative lines (clawbacks) net against positives. Runs
- * daily from cron. In demo mode payouts are marked paid instantly.
+ * Pay a runner everything they're owed, right now. No holding period: this runs
+ * the moment an order completes. Only `held` lines (unverified no-shows awaiting
+ * admin review) wait. Stripe then pays the connected account out to the runner's
+ * bank on Stripe's normal schedule.
  */
-export async function runPayouts() {
-  const settings = await getPricing();
-  const provider = getPayments();
-  const balances = await q<{ runner_id: string; amount: number; receiver: string | null }>(
-    `select e.runner_id, sum(e.amount_cents)::int as amount, p.payout_email as receiver
-     from public.runner_earnings e join public.profiles p on p.id = e.runner_id
-     where e.payout_id is null and e.available_at <= now()
-     group by e.runner_id, p.payout_email
-     having sum(e.amount_cents) >= $1`,
-    [settings.minPayoutCents],
+export async function payRunner(runnerId: string, orderId: string | null = null) {
+  const runner = await q1<{ stripe_account_id: string | null; payouts_enabled: boolean }>(
+    "select stripe_account_id, payouts_enabled from public.profiles where id = $1",
+    [runnerId],
   );
-  const batchId = `fd-${new Date().toISOString().slice(0, 10)}-${randomUUID().slice(0, 8)}`;
-  const items: { payoutId: string; receiver: string; amountCents: number; runnerId: string }[] = [];
+  if (!runner?.stripe_account_id || !runner.payouts_enabled) return { paid: 0 };
+  const provider = getPayments();
+  const sourceCharge = orderId ? (await q1<{ capture_ref: string | null }>("select capture_ref from public.orders where id = $1", [orderId]))?.capture_ref ?? null : null;
 
-  for (const b of balances) {
-    if (provider.mode === "paypal" && !b.receiver) continue; // runner hasn't added a PayPal email yet
-    const payoutId = await tx(async (t) => {
-      const [p] = await t.query<{ id: string }>(
-        "insert into public.payouts (runner_id, amount_cents, status, provider, receiver) values ($1, $2, 'pending', $3, $4) returning id",
-        [b.runner_id, b.amount, provider.mode, b.receiver ?? "demo"],
-      );
-      await t.query(
-        "update public.runner_earnings set payout_id = $1 where runner_id = $2 and payout_id is null and available_at <= now()",
-        [p.id, b.runner_id],
-      );
-      return p.id;
-    });
-    items.push({ payoutId, receiver: b.receiver ?? "demo", amountCents: b.amount, runnerId: b.runner_id });
-  }
-  if (items.length === 0) return { paid: 0, batchId: null };
+  const payoutId = randomUUID();
+  const amount = await tx(async (t) => {
+    const [r] = await t.query<{ amount: number }>(
+      "select coalesce(sum(amount_cents), 0)::int as amount from public.runner_earnings where runner_id = $1 and payout_id is null and not held",
+      [runnerId],
+    );
+    if (!r || r.amount <= 0) return 0;
+    await t.query(
+      "insert into public.payouts (id, runner_id, amount_cents, status, provider, receiver) values ($1, $2, $3, 'pending', $4, $5)",
+      [payoutId, runnerId, r.amount, provider.mode, runner.stripe_account_id],
+    );
+    await t.query("update public.runner_earnings set payout_id = $1 where runner_id = $2 and payout_id is null and not held", [payoutId, runnerId]);
+    return r.amount;
+  });
+  if (amount <= 0) return { paid: 0 };
 
   try {
-    const res = await provider.payout(items, batchId);
-    for (const r of res.items) {
-      await q(
-        `update public.payouts set status = $2, provider_ref = coalesce($3, $4), error = $5,
-           paid_at = case when $2 = 'paid' then now() else paid_at end where id = $1`,
-        [r.payoutId, r.status, r.ref ?? null, res.batchRef, r.error ?? null],
-      );
-      const item = items.find((i) => i.payoutId === r.payoutId)!;
-      if (r.status === "paid") {
-        await notify(item.runnerId, { category: "account", title: `Payout sent: $${(item.amountCents / 100).toFixed(2)}`, body: "Thanks for running.", url: "/run/earnings" });
-      }
-    }
+    const { ref } = await provider.transfer({ destination: runner.stripe_account_id, amountCents: amount, orderId, sourceCharge });
+    await q("update public.payouts set status = 'paid', provider_ref = $2, paid_at = now() where id = $1", [payoutId, ref]);
+    await q(
+      "insert into public.ledger (order_id, user_id, kind, amount_cents, provider, provider_ref, memo) values ($1, $2, 'payout', $3, $4, $5, 'Runner payout')",
+      [orderId, runnerId, -amount, provider.mode, ref],
+    );
+    return { paid: amount };
   } catch (e) {
-    // Release the lines so tomorrow's run retries them.
-    for (const i of items) {
-      await tx(async (t) => {
-        await t.query("update public.runner_earnings set payout_id = null where payout_id = $1", [i.payoutId]);
-        await t.query("update public.payouts set status = 'failed', error = $2 where id = $1", [i.payoutId, String((e as Error).message).slice(0, 500)]);
-      });
-    }
-    throw e;
+    // Put the lines back so the retry cron picks them up.
+    await tx(async (t) => {
+      await t.query("update public.runner_earnings set payout_id = null where payout_id = $1", [payoutId]);
+      await t.query("update public.payouts set status = 'failed', error = $2 where id = $1", [payoutId, String((e as Error).message).slice(0, 500)]);
+    });
+    console.error("[payout]", e);
+    return { paid: 0 };
   }
-  return { paid: items.length, batchId };
 }
 
-/** PayPal webhook: PAYMENT.PAYOUTS-ITEM.* */
-export async function applyPayoutItemEvent(payoutId: string, eventType: string, itemRef: string | null, error: string | null) {
-  if (eventType.endsWith("SUCCEEDED")) {
-    await q("update public.payouts set status = 'paid', paid_at = now(), provider_ref = coalesce($2, provider_ref) where id = $1", [payoutId, itemRef]);
-    return;
-  }
-  const terminalFailure = ["FAILED", "RETURNED", "BLOCKED", "REFUNDED", "UNCLAIMED", "DENIED"].some((s) => eventType.endsWith(s));
-  if (terminalFailure) {
-    await tx(async (t) => {
-      await t.query("update public.payouts set status = 'failed', error = $2 where id = $1", [payoutId, error ?? eventType]);
-      // Give the money back to the runner's balance so it goes out next time.
-      await t.query("update public.runner_earnings set payout_id = null where payout_id = $1", [payoutId]);
-    });
-    const [p] = await q<{ runner_id: string }>("select runner_id from public.payouts where id = $1", [payoutId]);
-    if (p) {
-      await notify(p.runner_id, {
-        category: "account",
-        title: "Payout didn't go through",
-        body: "PayPal couldn't deliver your payout. Check your PayPal email in Earnings. We'll retry on the next run.",
-        url: "/run/earnings",
-      });
-    }
-  }
+/** Retry any runner with unpaid, unheld earnings (failed transfers, newly released reviews). */
+export async function retryPayouts() {
+  const rows = await q<{ runner_id: string }>(
+    "select distinct runner_id from public.runner_earnings where payout_id is null and not held",
+  );
+  let paid = 0;
+  for (const r of rows) paid += (await payRunner(r.runner_id)).paid;
+  return { runners: rows.length, paidCents: paid };
 }

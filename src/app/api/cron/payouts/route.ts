@@ -1,5 +1,6 @@
 import { cronHandler } from "@/lib/cron-auth";
-import { runPayouts } from "@/lib/services/payouts";
+import { retryPayouts } from "@/lib/services/payouts";
 
-// Daily: pay each runner's available balance (past the dispute hold) via PayPal Payouts.
-export const GET = cronHandler(() => runPayouts());
+// Runners are paid the moment an order completes. This only retries failed
+// transfers and pays out no-show earnings an admin has released.
+export const GET = cronHandler(() => retryPayouts());

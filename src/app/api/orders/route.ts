@@ -9,5 +9,5 @@ export const POST = route(async (req) => {
   await limit(`order:${user.id}`, 8, 10 * 60, "orders");
   const input = await parseJson(req, createOrderSchema);
   const res = await createOrder(user, input);
-  return { orderId: res.orderId, code: res.code, paymentRef: res.paymentRef, mode: res.mode };
+  return { orderId: res.orderId, code: res.code, clientSecret: res.clientSecret, mode: res.mode };
 });

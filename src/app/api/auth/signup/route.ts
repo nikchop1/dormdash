@@ -1,6 +1,7 @@
 import { getAuth } from "@/lib/auth";
 import { setPendingVerification } from "@/lib/auth/session";
 import { env } from "@/lib/env";
+import { q1 } from "@/lib/db";
 import { ApiError, clientIp, parseJson, route } from "@/lib/http";
 import { limit } from "@/lib/ratelimit";
 import { emailTaken, phoneTaken } from "@/lib/services/account";
@@ -19,6 +20,8 @@ export const POST = route(async (req) => {
     const msg = `${building.name} has ${building.floor_count} floors.`;
     throw new ApiError(400, "invalid", msg, { floor: msg });
   }
+  const blocked = await q1("select 1 from public.blocked_identities where (kind = 'email' and value = lower($1)) or (kind = 'phone' and value = $2)", [input.email, input.phone]);
+  if (blocked) throw new ApiError(403, "blocked", "This email or phone number can't be used to register on Dormdash.");
   if (await emailTaken(input.email)) {
     throw new ApiError(409, "email_taken", "An account with this email already exists. Log in instead?", {
       email: "An account with this email already exists. Log in instead?",

@@ -20,10 +20,18 @@ export type Profile = {
   is_admin: boolean;
   runner_status: "none" | "pending" | "approved" | "rejected" | "suspended";
   runner_home_building_id: string | null;
-  status: "active" | "suspended" | "deleted";
+  status: "active" | "suspended" | "deleted" | "banned";
   on_shift: boolean;
   on_shift_since: Date | null;
-  payout_email: string | null;
+  credit_cents: number;
+  use_credit: boolean;
+  stripe_account_id: string | null;
+  payouts_enabled: boolean;
+  level_offset: number;
+  flagged_at: Date | null;
+  flag_reason: string | null;
+  customer_review_required: boolean;
+  banned_at: Date | null;
   created_at: Date;
 };
 
@@ -81,6 +89,7 @@ export async function requireUser(): Promise<SessionUser> {
     redirect(stale ? `/auth/signout?next=${next}` : `/login?next=${next}`);
   }
   if (u.profile.status === "suspended") redirect("/login?error=suspended");
+  if (u.profile.status === "banned") redirect("/appeal");
   if (!u.emailVerified) redirect("/verify-email");
   return u;
 }
@@ -99,10 +108,11 @@ export async function requireAdmin(): Promise<SessionUser> {
 
 // ---------- API guards (throw ApiError) ----------
 
-export async function apiUser(opts: { verified?: boolean } = {}): Promise<SessionUser> {
+export async function apiUser(opts: { verified?: boolean; allowBanned?: boolean } = {}): Promise<SessionUser> {
   const u = await getSessionUser();
   if (!u) throw new ApiError(401, "unauthenticated", "You're signed out. Log in and try again.");
   if (u.profile.status === "suspended") throw new ApiError(403, "suspended", "Your account is suspended. Email support to sort it out.");
+  if (u.profile.status === "banned" && !opts.allowBanned) throw new ApiError(403, "banned", "This account is banned. You can appeal from the appeal page.");
   if ((opts.verified ?? true) && !u.emailVerified) throw new ApiError(403, "unverified", "Verify your email first. Check your NYU inbox for the link.");
   return u;
 }

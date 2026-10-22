@@ -2,6 +2,8 @@ import { nyParts } from "./time";
 
 export type DistanceTier = { maxMiles: number; addCents: number };
 export type FloorTier = { maxFloor: number | null; addCents: number };
+export type SizeTier = { maxCents: number | null; addCents: number };
+export type LevelTier = { minDeliveries: number; maxFoodCents: number | null };
 
 export type PricingSettings = {
   baseFeeCents: number;
@@ -19,8 +21,29 @@ export type PricingSettings = {
   maxActiveOrders: number;
   freeUnclaimsPerWeek: number;
   tipPresets: number[];
-  payoutHoldHours: number;
-  minPayoutCents: number;
+  sizeTiers: SizeTier[];
+  bagFeeCents: number;
+  maxBags: number;
+  guaranteeCents: number;
+  doorCountdownSeconds: number;
+  runnerAbsentGraceSeconds: number;
+  presentWindowAfterSeconds: number;
+  pinClaimWindowSeconds: number;
+  missingDeliveryMinutes: number;
+  headingHomeRadiusMiles: number;
+  levelTiers: LevelTier[];
+  noShowWarnCount: number;
+  noShowReviewCount: number;
+  noShowWindowDays: number;
+  patternWindowDays: number;
+  patternCounterparties: number;
+  noShowRatePct: number;
+  noShowRateMinOrders: number;
+  freeProblemReportsPer30d: number;
+  caseResponseHours: number;
+  refundTargetHours: number;
+  appealDays: number;
+  evidenceRetentionDays: number;
 };
 
 export const DEFAULT_PRICING: PricingSettings = {
@@ -48,8 +71,38 @@ export const DEFAULT_PRICING: PricingSettings = {
   maxActiveOrders: 4,
   freeUnclaimsPerWeek: 1,
   tipPresets: [0, 50, 100, 200],
-  payoutHoldHours: 24,
-  minPayoutCents: 100,
+  sizeTiers: [
+    { maxCents: 1500, addCents: 0 },
+    { maxCents: 3000, addCents: 50 },
+    { maxCents: 5000, addCents: 100 },
+    { maxCents: null, addCents: 150 },
+  ],
+  bagFeeCents: 50,
+  maxBags: 4,
+  guaranteeCents: 10,
+  doorCountdownSeconds: 180,
+  runnerAbsentGraceSeconds: 180,
+  presentWindowAfterSeconds: 300,
+  pinClaimWindowSeconds: 300,
+  missingDeliveryMinutes: 45,
+  headingHomeRadiusMiles: 0.15,
+  levelTiers: [
+    { minDeliveries: 0, maxFoodCents: 2000 },
+    { minDeliveries: 10, maxFoodCents: 4000 },
+    { minDeliveries: 30, maxFoodCents: null },
+  ],
+  noShowWarnCount: 2,
+  noShowReviewCount: 3,
+  noShowWindowDays: 30,
+  patternWindowDays: 60,
+  patternCounterparties: 3,
+  noShowRatePct: 20,
+  noShowRateMinOrders: 10,
+  freeProblemReportsPer30d: 1,
+  caseResponseHours: 24,
+  refundTargetHours: 24,
+  appealDays: 7,
+  evidenceRetentionDays: 90,
 };
 
 export type SurgeWindow = {
@@ -104,21 +157,45 @@ export function floorAddon(floor: number, s: PricingSettings): number {
   return tiers.at(-1)?.addCents ?? 0;
 }
 
+/** Order-size add-on from the food total the customer entered. */
+export function sizeAddon(foodValueCents: number, s: PricingSettings): number {
+  const tiers = [...s.sizeTiers].sort((a, b) => (a.maxCents ?? Infinity) - (b.maxCents ?? Infinity));
+  for (const t of tiers) if (t.maxCents === null || foodValueCents <= t.maxCents) return t.addCents;
+  return tiers.at(-1)?.addCents ?? 0;
+}
+
+/** +bagFee per bag after the first. */
+export function bagAddon(bags: number, s: PricingSettings): number {
+  const n = Math.min(Math.max(1, Math.floor(bags)), s.maxBags);
+  return (n - 1) * s.bagFeeCents;
+}
+
 export type Quote = {
   distanceMiles: number;
   baseFeeCents: number;
   distanceFeeCents: number;
+  /** 0 for lobby handoffs. */
   floorFeeCents: number;
+  sizeFeeCents: number;
+  bagFeeCents: number;
   surgeMultiplier: number;
   surgeLabel: string | null;
   surgeFeeCents: number;
+  /** (base + distance + floor + size) x surge, then + bags. */
   deliveryFeeCents: number;
   tipCents: number;
+  /** Delivery guarantee: separate line, never surged, goes to the Guarantee Fund. */
+  guaranteeCents: number;
+  /** Everything the order costs before credits. */
   totalCents: number;
+  /** Dormdash credit applied (fees and tips only). Funded by the platform. */
+  creditAppliedCents: number;
+  /** What actually gets charged to the card. */
+  chargeCents: number;
   platformFeeCents: number;
-  /** Runner's share of the delivery fee (excludes tip). */
+  /** Runner's share of the delivery fee (excludes tip). Credits never reduce it. */
   runnerFeeCents: number;
-  /** Everything the runner earns on this order: fee share + 100% of tip. */
+  /** Everything the runner earns on a completed delivery: fee share + 100% of tip. */
   runnerPayoutCents: number;
 };
 
@@ -134,15 +211,28 @@ export function quoteDelivery(input: {
   tipCents: number;
   surge: ActiveSurge | null;
   settings: PricingSettings;
+  foodValueCents?: number;
+  bags?: number;
+  /** Lobby handoff: no floor add-on. */
+  lobby?: boolean;
+  /** Credit balance available and whether the customer wants it applied. */
+  creditBalanceCents?: number;
+  useCredit?: boolean;
 }): Quote | QuoteError {
   const { distanceMiles, floor, settings: s } = input;
   const dist = distanceAddon(distanceMiles, s);
   if (dist === null) return { error: "out_of_range", maxRadiusMiles: s.maxRadiusMiles };
-  const floorFee = floorAddon(Math.max(1, Math.floor(floor)), s);
-  const subtotal = s.baseFeeCents + dist + floorFee;
+  const floorFee = input.lobby ? 0 : floorAddon(Math.max(1, Math.floor(floor)), s);
+  const sizeFee = sizeAddon(Math.max(0, input.foodValueCents ?? 0), s);
+  const bagFee = bagAddon(input.bags ?? 1, s);
+  const subtotal = s.baseFeeCents + dist + floorFee + sizeFee;
   const multiplier = input.surge && input.surge.multiplier > 1 ? input.surge.multiplier : 1;
-  const deliveryFee = Math.round(subtotal * multiplier);
+  const surged = Math.round(subtotal * multiplier);
+  const deliveryFee = surged + bagFee;
   const tip = Math.max(0, Math.round(input.tipCents));
+  const guarantee = s.guaranteeCents;
+  const total = deliveryFee + tip + guarantee;
+  const credit = applyCredit({ feesAndTipsCents: deliveryFee + tip, balanceCents: input.creditBalanceCents ?? 0, useCredit: input.useCredit ?? true });
   const platformFee = Math.round(deliveryFee * s.platformFeePct);
   const runnerFee = deliveryFee - platformFee;
   return {
@@ -150,16 +240,27 @@ export function quoteDelivery(input: {
     baseFeeCents: s.baseFeeCents,
     distanceFeeCents: dist,
     floorFeeCents: floorFee,
+    sizeFeeCents: sizeFee,
+    bagFeeCents: bagFee,
     surgeMultiplier: multiplier,
     surgeLabel: multiplier > 1 ? input.surge!.label : null,
-    surgeFeeCents: deliveryFee - subtotal,
+    surgeFeeCents: surged - subtotal,
     deliveryFeeCents: deliveryFee,
     tipCents: tip,
-    totalCents: deliveryFee + tip,
+    guaranteeCents: guarantee,
+    totalCents: total,
+    creditAppliedCents: credit,
+    chargeCents: total - credit,
     platformFeeCents: platformFee,
     runnerFeeCents: runnerFee,
     runnerPayoutCents: runnerFee + tip,
   };
+}
+
+/** Credits pay for delivery fees and tips only (never the guarantee), up to the balance. */
+export function applyCredit(i: { feesAndTipsCents: number; balanceCents: number; useCredit: boolean }): number {
+  if (!i.useCredit) return 0;
+  return Math.max(0, Math.min(i.balanceCents, i.feesAndTipsCents));
 }
 
 export const isQuoteError = (q: Quote | QuoteError): q is QuoteError => "error" in q;

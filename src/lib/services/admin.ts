@@ -6,20 +6,20 @@ import { notify } from "@/lib/notify";
 import type { PricingSettings, SurgeWindow } from "@/lib/domain/pricing";
 import { recomputeDistances } from "./places";
 
-type BuildingInput = { name: string; shortName: string; address: string; lat: number; lng: number; floorCount: number; doorRequiresResident: boolean; active: boolean };
+type BuildingInput = { name: string; shortName: string; address: string; lat: number; lng: number; floorCount: number; doorRequiresResident: boolean; handoffRadiusM: number; active: boolean };
 type SpotInput = { name: string; address: string; lat: number; lng: number; type: string; active: boolean; pickupNotes: string; verifyBeforeLaunch: boolean };
 
 export async function upsertBuilding(id: string | null, b: BuildingInput) {
   const row = id
     ? await q1<{ id: string }>(
-        `update public.buildings set name=$2, short_name=$3, address=$4, lat=$5, lng=$6, floor_count=$7, door_requires_resident=$8, active=$9
+        `update public.buildings set name=$2, short_name=$3, address=$4, lat=$5, lng=$6, floor_count=$7, door_requires_resident=$8, active=$9, handoff_radius_m=$10
          where id=$1 returning id`,
-        [id, b.name, b.shortName, b.address, b.lat, b.lng, b.floorCount, b.doorRequiresResident, b.active],
+        [id, b.name, b.shortName, b.address, b.lat, b.lng, b.floorCount, b.doorRequiresResident, b.active, b.handoffRadiusM],
       )
     : await q1<{ id: string }>(
-        `insert into public.buildings (name, short_name, address, lat, lng, floor_count, door_requires_resident, active)
-         values ($1,$2,$3,$4,$5,$6,$7,$8) returning id`,
-        [b.name, b.shortName, b.address, b.lat, b.lng, b.floorCount, b.doorRequiresResident, b.active],
+        `insert into public.buildings (name, short_name, address, lat, lng, floor_count, door_requires_resident, active, handoff_radius_m)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning id`,
+        [b.name, b.shortName, b.address, b.lat, b.lng, b.floorCount, b.doorRequiresResident, b.active, b.handoffRadiusM],
       );
   if (!row) throw new ApiError(404, "not_found", "Building not found.");
   await recomputeDistances();
@@ -64,12 +64,24 @@ export async function savePricing(adminId: string, p: PricingSettings) {
     `update public.pricing_settings set base_fee_cents=$2, distance_tiers=$3::jsonb, floor_tiers=$4::jsonb, max_radius_miles=$5,
        weather_surge_on=$6, weather_multiplier=$7, platform_fee_pct=$8, cancel_fee_cents=$9, late_grace_minutes=$10,
        unclaimed_ping_minutes=$11, unclaimed_cancel_minutes=$12, strike_threshold=$13, max_active_orders=$14,
-       free_unclaims_per_week=$15, tip_presets=array(select jsonb_array_elements_text($16::jsonb)::int), payout_hold_hours=$17,
-       min_payout_cents=$18, updated_at=now(), updated_by=$1 where id = 1`,
+       free_unclaims_per_week=$15, tip_presets=array(select jsonb_array_elements_text($16::jsonb)::int),
+       size_tiers=$17::jsonb, bag_fee_cents=$18, max_bags=$19, guarantee_cents=$20, door_countdown_seconds=$21,
+       runner_absent_grace_seconds=$22, present_window_after_seconds=$23, pin_claim_window_seconds=$24,
+       missing_delivery_minutes=$25, heading_home_radius_miles=$26, level_tiers=$27::jsonb, no_show_warn_count=$28,
+       no_show_review_count=$29, no_show_window_days=$30, pattern_window_days=$31, pattern_counterparties=$32,
+       no_show_rate_pct=$33, no_show_rate_min_orders=$34, free_problem_reports_per_30d=$35, case_response_hours=$36,
+       refund_target_hours=$37, appeal_days=$38, evidence_retention_days=$39,
+       updated_at=now(), updated_by=$1 where id = 1`,
     [
       adminId, p.baseFeeCents, JSON.stringify(tiers), JSON.stringify(floors), p.maxRadiusMiles, p.weatherSurgeOn, p.weatherMultiplier,
       p.platformFeePct, p.cancelFeeCents, p.lateGraceMinutes, p.unclaimedPingMinutes, p.unclaimedCancelMinutes, p.strikeThreshold,
-      p.maxActiveOrders, p.freeUnclaimsPerWeek, JSON.stringify(p.tipPresets), p.payoutHoldHours, p.minPayoutCents,
+      p.maxActiveOrders, p.freeUnclaimsPerWeek, JSON.stringify(p.tipPresets),
+      JSON.stringify(p.sizeTiers), p.bagFeeCents, p.maxBags, p.guaranteeCents, p.doorCountdownSeconds,
+      p.runnerAbsentGraceSeconds, p.presentWindowAfterSeconds, p.pinClaimWindowSeconds,
+      p.missingDeliveryMinutes, p.headingHomeRadiusMiles, JSON.stringify(p.levelTiers), p.noShowWarnCount,
+      p.noShowReviewCount, p.noShowWindowDays, p.patternWindowDays, p.patternCounterparties,
+      p.noShowRatePct, p.noShowRateMinOrders, p.freeProblemReportsPer30d, p.caseResponseHours,
+      p.refundTargetHours, p.appealDays, p.evidenceRetentionDays,
     ],
   );
   // The radius may have changed: re-apply it to every spot/building pair.
@@ -105,7 +117,7 @@ export async function setFlag(key: string, enabled: boolean) {
   if (!r) throw new ApiError(404, "not_found", "Unknown flag.");
 }
 
-export type UserAction = "suspend" | "unsuspend" | "make_admin" | "remove_admin" | "reinstate_runner" | "suspend_runner" | "void_strikes";
+export type UserAction = "suspend" | "unsuspend" | "make_admin" | "remove_admin" | "reinstate_runner" | "suspend_runner" | "void_strikes" | "clear_flag" | "clear_review";
 
 export async function adminUserAction(adminId: string, userId: string, action: UserAction) {
   if (userId === adminId && (action === "suspend" || action === "remove_admin")) {
@@ -134,6 +146,12 @@ export async function adminUserAction(adminId: string, userId: string, action: U
         if (p.runner_status !== "suspended") throw new ApiError(409, "not_suspended", "This runner isn't suspended.");
         await t.query("update public.strikes set voided=true where runner_id=$1 and not voided", [userId]);
         await t.query("update public.profiles set runner_status='approved' where id=$1", [userId]);
+        break;
+      case "clear_flag":
+        await t.query("update public.profiles set flagged_at = null, flag_reason = null where id = $1", [userId]);
+        break;
+      case "clear_review":
+        await t.query("update public.profiles set customer_review_required = false where id = $1", [userId]);
         break;
       case "void_strikes":
         await t.query("update public.strikes set voided=true where runner_id=$1 and not voided", [userId]);

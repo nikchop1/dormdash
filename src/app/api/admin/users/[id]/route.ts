@@ -4,7 +4,7 @@ import { parseJson, route } from "@/lib/http";
 import { adminUserAction } from "@/lib/services/admin";
 
 const schema = z.object({
-  action: z.enum(["suspend", "unsuspend", "make_admin", "remove_admin", "reinstate_runner", "suspend_runner", "void_strikes"]),
+  action: z.enum(["suspend", "unsuspend", "make_admin", "remove_admin", "reinstate_runner", "suspend_runner", "void_strikes", "clear_flag", "clear_review"]),
 });
 
 export const POST = route<{ params: Promise<{ id: string }> }>(async (req, { params }) => {

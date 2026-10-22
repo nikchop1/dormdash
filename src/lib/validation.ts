@@ -130,11 +130,10 @@ export const deleteAccountSchema = z.object({
 
 export const runnerApplicationSchema = z.object({
   legalName: fullName,
+  nyuIdNumber: z.string().trim().toUpperCase().regex(/^N\d{8}$/, "Your NYU ID number looks like N12345678."),
   homeBuildingId: uuid,
   agree: z.literal(true, { message: "You need to agree to the Runner Agreement." }),
 });
-
-export const payoutEmailSchema = z.object({ payoutEmail: emailBase });
 
 export const shiftsSchema = z.object({
   slots: z.array(z.object({ day: z.number().int().min(0).max(6), hour: z.number().int().min(0).max(23) })).max(168),
@@ -151,6 +150,9 @@ export const createOrderSchema = z.object({
   room,
   notes: z.string().trim().max(200).default(""),
   tipCents: z.coerce.number().int().min(0).max(5000, "Tips top out at $50."),
+  foodValueCents: z.coerce.number().int().min(1, "Enter the food total from your receipt.").max(50000, "That's a big order. Food totals top out at $500."),
+  bags: z.coerce.number().int().min(1).max(4).default(1),
+  useCredit: z.boolean().default(true),
   scheduledFor: z.string().datetime({ offset: true }).nullable().default(null),
   confirmationPhotoId: uuid,
 });
@@ -160,30 +162,50 @@ export const quoteSchema = z.object({
   buildingId: uuid,
   floor,
   tipCents: z.coerce.number().int().min(0).max(5000).default(0),
+  foodValueCents: z.coerce.number().int().min(0).max(50000).default(0),
+  bags: z.coerce.number().int().min(1).max(4).default(1),
+  useCredit: z.boolean().default(true),
 });
 
-export const deliverSchema = z.union([
-  z.object({ pin: z.string().regex(/^\d{4}$/, "The PIN is 4 digits.") }),
-  z.object({ photoId: uuid }),
-]);
+/** PIN is the only way to complete a delivery. There is no photo or drop-off path. */
+export const deliverSchema = z.object({ pin: z.string().regex(/^\d{4}$/, "The PIN is 4 digits.") });
+
+export const problemSchema = z.object({
+  reason: z.enum(["restaurant_not_ready", "wrong_order", "spilled_damaged", "cant_enter_building"]),
+  note: z.string().trim().min(5, "Add a short note (5+ characters).").max(1000),
+  photoId: z.string().uuid("Take a live photo first."),
+});
+
+export const caseOpenSchema = z.object({
+  type: z.enum(["missing_delivery", "pin_no_food", "customer_claim"]),
+  reason: z.enum(["never_received", "stolen", "wrong_items", "other"]).optional(),
+  description: z.string().trim().max(2000).default(""),
+  photoId: z.string().uuid().nullable().default(null),
+});
+
+export const caseMessageSchema = z.object({ body: z.string().trim().min(1, "Write a message.").max(2000) });
+
+export const caseResolveSchema = z.object({
+  outcome: z.enum(["confirm_theft", "runner_at_fault", "customer_at_fault", "accident_refund", "no_fault", "dismiss"]),
+  note: z.string().trim().max(1000).default(""),
+});
+
+export const lawEnforcementSchema = z.object({
+  agency: z.string().trim().min(2).max(120),
+  officer: z.string().trim().min(2).max(120),
+  reference: z.string().trim().min(1).max(120),
+  requestDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD."),
+  shared: z.string().trim().min(2).max(2000),
+  caseId: z.string().uuid().nullable().default(null),
+});
 
 export const ratingSchema = z.object({
   stars: z.coerce.number().int().min(1, "Pick 1 to 5 stars.").max(5),
   comment: z.string().trim().max(500).default(""),
 });
 
-export const disputeSchema = z.object({
-  reason: z.enum(["late", "missing", "wrong_items", "stolen", "wrong_room", "other"]),
-  description: z.string().trim().min(10, "Tell us a bit more (10+ characters).").max(1000),
-  photoId: uuid.nullable().default(null),
-});
+export const caseResponseSchema = z.object({ response: z.string().trim().min(5, "Add a sentence or two.").max(2000) });
 
-export const disputeResponseSchema = z.object({ response: z.string().trim().min(5).max(1000) });
-
-export const disputeResolutionSchema = z.object({
-  actions: z.array(z.enum(["refund_fee", "refund_tip", "strike", "ban", "dismiss"])).min(1, "Pick at least one action."),
-  note: z.string().trim().max(1000).default(""),
-});
 
 // ---------- admin ----------
 
@@ -195,6 +217,7 @@ export const buildingSchema = z.object({
   lng: z.coerce.number().min(-180).max(180),
   floorCount: z.coerce.number().int().min(1).max(80),
   doorRequiresResident: z.boolean(),
+  handoffRadiusM: z.coerce.number().int().min(10).max(1000).default(75),
   active: z.boolean(),
 });
 
@@ -227,8 +250,29 @@ export const pricingSchema = z.object({
   maxActiveOrders: z.coerce.number().int().min(1).max(10),
   freeUnclaimsPerWeek: z.coerce.number().int().min(0).max(20),
   tipPresets: z.array(cents).min(1).max(6),
-  payoutHoldHours: z.coerce.number().int().min(0).max(24 * 14),
-  minPayoutCents: cents,
+  sizeTiers: z.array(z.object({ maxCents: z.coerce.number().int().min(0).max(100000).nullable(), addCents: cents })).min(1).max(8),
+  bagFeeCents: cents,
+  maxBags: z.coerce.number().int().min(1).max(4),
+  guaranteeCents: cents,
+  doorCountdownSeconds: z.coerce.number().int().min(5).max(1800),
+  runnerAbsentGraceSeconds: z.coerce.number().int().min(5).max(1800),
+  presentWindowAfterSeconds: z.coerce.number().int().min(0).max(3600),
+  pinClaimWindowSeconds: z.coerce.number().int().min(30).max(3600),
+  missingDeliveryMinutes: z.coerce.number().int().min(0).max(240),
+  headingHomeRadiusMiles: z.coerce.number().min(0.01).max(2),
+  levelTiers: z.array(z.object({ minDeliveries: z.coerce.number().int().min(0).max(10000), maxFoodCents: z.coerce.number().int().min(0).max(100000).nullable() })).min(1).max(6),
+  noShowWarnCount: z.coerce.number().int().min(1).max(20),
+  noShowReviewCount: z.coerce.number().int().min(1).max(20),
+  noShowWindowDays: z.coerce.number().int().min(1).max(365),
+  patternWindowDays: z.coerce.number().int().min(1).max(365),
+  patternCounterparties: z.coerce.number().int().min(2).max(20),
+  noShowRatePct: z.coerce.number().int().min(1).max(100),
+  noShowRateMinOrders: z.coerce.number().int().min(1).max(100),
+  freeProblemReportsPer30d: z.coerce.number().int().min(0).max(20),
+  caseResponseHours: z.coerce.number().int().min(1).max(168),
+  refundTargetHours: z.coerce.number().int().min(1).max(168),
+  appealDays: z.coerce.number().int().min(1).max(60),
+  evidenceRetentionDays: z.coerce.number().int().min(7).max(3650),
 });
 
 export const surgeWindowSchema = z.object({

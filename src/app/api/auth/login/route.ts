@@ -41,6 +41,11 @@ export const POST = route(async (req) => {
   }
 
   const profile = await loadProfile(res.user.id);
+  if (profile?.status === "banned") {
+    // Banned runners can still sign in, but only reach the limited appeal page.
+    await resetLimit(key);
+    return { ok: true, next: "/appeal" };
+  }
   if (!profile || profile.status !== "active") {
     await auth.signOut();
     throw new ApiError(

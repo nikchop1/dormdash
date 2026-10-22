@@ -5,7 +5,7 @@ import { formatCents } from "@/lib/domain/pricing";
 import { getCurrentSurge, getPricing } from "@/lib/settings";
 import { notify, notifyOnShiftRunners } from "@/lib/notify";
 import { cancelOrder, type OrderRow } from "./orders";
-import { refundOrder } from "./money";
+import { issueCredit, refundOrder } from "./money";
 import { addStrike } from "./strikes";
 
 /** 10 min unclaimed: re-ping runners. 20 min: tell the customer they can cancel for a full refund. */
@@ -56,6 +56,7 @@ export async function lateSweep(now = new Date()) {
       const late = evaluateLateness({ eta: o.eta, deliveredAt: null, deliveryFeeCents: o.delivery_fee_cents, lateRefundedAt: o.late_refunded_at }, now, s);
       if (!late.late) return;
       const amount = await refundOrder(t, o, late.refundCents, `Late delivery refund, order ${o.code}`);
+      if (late.refundCents - amount > 0) await issueCredit(t, o.customer_id, late.refundCents - amount, o.id, "Late delivery: fee paid with credit");
       await t.query("update public.orders set late_refunded_at = now() where id = $1", [o.id]);
       await t.query(
         "insert into public.order_events (order_id, type, data) values ($1, 'late_refund', $2::jsonb)",
@@ -81,6 +82,9 @@ export async function lateSweep(now = new Date()) {
 }
 
 /** Abandoned checkouts: cancel orders stuck awaiting payment for 30+ minutes. */
+export { runnerAbsentSweep } from "./orders";
+export { missingDeliverySweep } from "./cases";
+
 export async function staleCheckoutSweep() {
   const stale = await q<{ id: string }>(
     "select id from public.orders where status = 'pending_payment' and created_at < now() - interval '30 minutes'",

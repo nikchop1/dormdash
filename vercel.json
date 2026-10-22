@@ -4,6 +4,8 @@
     { "path": "/api/cron/unclaimed", "schedule": "* * * * *" },
     { "path": "/api/cron/late", "schedule": "* * * * *" },
     { "path": "/api/cron/surge", "schedule": "* * * * *" },
-    { "path": "/api/cron/payouts", "schedule": "0 14 * * *" }
+    { "path": "/api/cron/handoff", "schedule": "* * * * *" },
+    { "path": "/api/cron/payouts", "schedule": "*/15 * * * *" },
+    { "path": "/api/cron/retention", "schedule": "0 9 * * *" }
   ]
 }
