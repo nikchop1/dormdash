@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/cn";
+import { formatCents } from "@/lib/domain/pricing";
 
 /**
  * Single-series bar chart. One series means one color (ink) and no legend; the
@@ -11,14 +12,16 @@ import { cn } from "@/lib/cn";
 export function BarChart({
   data,
   label,
-  format = (n) => String(n),
+  format: kind = "count",
   height = 160,
 }: {
   data: { key: string; label: string; value: number }[];
   label: string;
-  format?: (n: number) => string;
+  /** A string, not a function, so server components can pass it. */
+  format?: "count" | "cents";
   height?: number;
 }) {
+  const format = (n: number) => (kind === "cents" ? formatCents(n) : String(n));
   const [hover, setHover] = useState<number | null>(null);
   const max = Math.max(1, ...data.map((d) => d.value));
   const h = hover !== null ? data[hover] : null;

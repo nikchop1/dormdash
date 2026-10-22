@@ -104,7 +104,7 @@ export default async function AdminOverview({ searchParams }: { searchParams: Pr
         </section>
         <section>
           <SectionTitle action={<Csv report="weekly" days={days}>Weekly CSV</Csv>}>Platform revenue per day</SectionTitle>
-          <BarChart label={`Platform revenue per day, last ${days} days`} data={daily.map((d) => ({ key: d.day, label: d.day.slice(5), value: d.revenue_cents }))} format={formatCents} />
+          <BarChart label={`Platform revenue per day, last ${days} days`} data={daily.map((d) => ({ key: d.day, label: d.day.slice(5), value: d.revenue_cents }))} format="cents" />
         </section>
       </div>
 

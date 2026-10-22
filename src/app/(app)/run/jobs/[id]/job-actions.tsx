@@ -101,7 +101,7 @@ export function JobActions({
       const err = e as ClientApiError;
       if (action === "deliver" && err.code === "wrong_pin") setPinError(err.message);
       else toast(err.message, "error");
-      if (err.code === "pin_locked" || /door photo|photo instead/.test(err.message)) setUsePhoto(true);
+      if (err.code === "pin_locked" || err.message.startsWith("Too many wrong PINs")) setUsePhoto(true);
       router.refresh();
       return false;
     } finally {

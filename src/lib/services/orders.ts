@@ -595,8 +595,8 @@ export const ORDER_VIEW_SQL = `
     sp.pickup_notes as spot_notes, b.name as building_name, b.short_name as building_short,
     c.full_name as customer_name, c.phone as customer_phone,
     r.full_name as runner_name, r.avatar_path as runner_avatar,
-    (select avg(stars)::float8 from public.ratings rt where rt.runner_id = o.runner_id) as runner_rating,
-    (select count(*)::int from public.ratings rt where rt.runner_id = o.runner_id) as runner_ratings
+    public.runner_rating(o.runner_id) as runner_rating,
+    coalesce(public.runner_rating_count(o.runner_id), 0) as runner_ratings
   from public.orders o
   join public.pickup_spots sp on sp.id = o.spot_id
   join public.buildings b on b.id = o.building_id

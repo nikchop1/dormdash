@@ -141,13 +141,6 @@ async function main() {
     );
   }
 
-  // Avatars for two runners so the customer view shows a photo.
-  for (const k of ["r1", "r3"]) {
-    const path = `${uid[k]}/avatar/${randomUUID()}.png`;
-    await putObject("avatars", path, bagPng(), "image/png");
-    await db.query("update public.profiles set avatar_path = $2 where id = $1", [uid[k], path]);
-  }
-
   // Runner applications: approved ones + the pending one.
   for (const p of PEOPLE.filter((x) => x.role === "runner" || x.role === "pending")) {
     const path = `${uid[p.key]}/id_card/${randomUUID()}.png`;
