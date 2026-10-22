@@ -28,6 +28,10 @@ small up-triangle, like the display above every dorm elevator. It shows up as:
 Supporting custom marks (inline SVG, `src/components/brand`): the logo (a bag inside an
 elevator-door slot), the bag glyph, the tower cross-section.
 
+**Wordmark.** `Wordmark` sets DORMDASH in Big Shoulders 900, uppercase, tight tracking:
+DORM in `ink`, DASH in `accent-ink` (so it passes contrast on paper; mustard itself is
+reserved for fills). Never red: red belongs to DoorDash and to our `danger` token.
+
 ## 3. Color
 
 One accent, committed: **Mustard** (NYC cab yellow, deli mustard). It's for primary
@@ -139,6 +143,17 @@ Headings are **left-aligned**. Centered text is reserved for empty states and th
 | `Money` | Tabular, `$X.XX`, optional strike-through for refunded. |
 | `BottomNav` / `SideNav` | Home · Orders · Run · Profile (+ Admin). Active = ink text + 3px mustard bar. |
 | `PageHeader` | Left-aligned title in display face, optional back link and action. |
+| `LiveCamera` (`src/components/live-camera.tsx`) | Evidence photos. Dashed "Open camera" tile → live rear-camera preview on an ink panel with a "Live camera" label and a mustard **Take photo** button → thumbnail row with "Photo taken", the location result (verified / not verified / not shared) and Retake. There is no file input. Denied permission shows a `danger-soft` band with exact steps to allow the camera. |
+| `PinCard` | Ink panel, four boxed display digits in `accent-on-fill`, "Only you see this", and the one instruction: "Say your PIN as you take the bag." |
+| PIN pad (run screen) | Four 56×64 boxes, display face, numeric keyboard, auto-advance; errors turn the borders `danger` and say what to do next. |
+| Countdown | Tabular display digits `m:ss`. Customer: on the "Your runner is at your door" ink header next to the door photo. Runner: per stop, plus a "Waiting on PINs" ink strip listing every running countdown with its floor badge. |
+| `CaseSummary`, `CaseThread` | Status tag, timeline rows, outcome notice with the cash vs credit split. Threads: the Dormdash team on `sunken`, the user on `accent-soft`. Never shows the other party's last name, phone, email, NYU ID or location. |
+
+## 8a. Key screens
+
+- **Run screen (`/run/active`).** One ordered checklist: numbered stops, pickups first (grouped by restaurant), then deliveries in elevator order. The current stop has a 2px ink border and a mustard step number; done stops collapse to a green check. A delivery stop's heading is the **room number** (building underneath) because that's what the runner reads in a hallway. Primary actions are full-width `lg` buttons; "Customer not here" is a `secondary` button that stays disabled (with the reason in text below) until it's allowed.
+- **Live order.** Status timeline, heads-up notice (accent band), the door photo with the countdown, then the PIN card. Call buttons are outline buttons with a phone icon; numbers are never printed.
+- **Admin case.** Two columns: evidence, timeline, PIN log, both histories and both threads on the left; receipt, money and the decision on the right. Outcomes are radio cards; "Confirm theft" switches the button to `danger` and spells out the consequence.
 
 ## 9. Layout
 

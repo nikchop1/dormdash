@@ -20,7 +20,7 @@ export type BoardJob = {
   waitedMin: number;
   scheduledLabel?: string | null;
   surge?: boolean;
-  /** "Unlocks after 4 more deliveries" when above the runner's level limit. */
+  /** "Available after 4 more deliveries" when above the runner's level limit. */
   locked?: string | null;
   createdAt: string;
 };

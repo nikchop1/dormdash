@@ -2,7 +2,7 @@
 
 How this was done: `npm run screenshots` boots an isolated copy of the app (fresh seed,
 production build) and Playwright captures every major page as each role, at **390px**
-and **1280px**, in **light** and **dark** (128 images, `docs/screenshots/`, named
+and **1280px**, in **light** and **dark** (148 images after phase 2, `docs/screenshots/`, named
 `<role>--<page>--<width>-<theme>.png`). Each was reviewed against the banned list and
 the rules in DESIGN.md, issues were fixed, and everything was re-captured. Pass 1 found
 the issues below; pass 2 (after fixes) and pass 3 (final, after the last code changes)
@@ -27,10 +27,10 @@ A source sweep backs up the visual review (re-run any time):
 |---|---|
 | Public | Landing, Log in, Sign up, Forgot password, Terms, 404, Offline |
 | Unverified | Verify email |
-| Customer | Home, New order (checkout form), Orders, Live order (ETA + PIN), Delivered order (rating + receipt), Profile, Edit profile, Notification settings, Notifications, Run (become a runner) |
-| Runner | Run hub + job board + batches, Job detail (pickup/PIN), Shifts, Earnings |
+| Customer | Home, New order (food total, bags, credit switch, PIN notice, lobby note), Orders, Live order (heads-up + PIN), Delivered order (rating + receipt), Case (timeline + admin thread), Profile (credit), Edit profile, Notification settings, Notifications, Run (become a runner) |
+| Runner | Run hub (gate checklist, level, heading home, suggested runs, job board), Run screen (stops, PIN pad, countdowns), Live camera open, Shifts, Earnings + payout setup |
 | Pending runner | Run (application in review) |
-| Admin | Dashboard (KPIs, charts, heatmap), Order log, Disputes, Dispute detail (evidence), Runner applications, Users, Places, Pricing, Flags |
+| Admin | Dashboard (KPIs, safety and trust, charts, heatmap), Order log, Cases queue, Case detail (evidence, timeline, PIN log, histories, threads, decision), Law enforcement log, Runner applications, Users, Places, Pricing, Flags |
 
 ## Issues found and fixed
 
@@ -53,12 +53,24 @@ A source sweep backs up the visual review (re-run any time):
 | 15 | Seed avatars | Runner avatars were photos of takeout bags, which read as broken images in the runner row. | Removed; initials on mustard are the designed default. |
 | 16 | Screenshot method | Full-page captures pinned the bottom nav and checkout bar mid-page. | Capture resizes the viewport to the page height so fixed bars sit at the bottom like on a phone. |
 
+## Phase 2 pass (rename, runs, food for PIN, cases)
+
+| # | Where | Issue | Fix |
+|---|---|---|---|
+| 17 | Run screen | Delivery stop headings ("Tower Hall · room 1412") truncated the room number on a 390px phone, the one thing a runner needs. | Heading is now "Room 1412", building on a second line. |
+| 18 | Run board | A one-order suggested run said "Take all 1". | "Take it" for a single order. |
+| 19 | New order | "Food total on your receipt ($)" wrapped to two lines and pushed its input below the Bags select. | Label "Food total ($)"; "From your receipt" moved into the hint. |
+| 20 | Copy sweep | "Unlocks after N deliveries" and "Customer not here unlocks" used a banned word. | "Available after N more deliveries", "becomes available". |
+| 21 | Live camera capture | Full-page capture pinned the bottom nav mid-page. | Same viewport-resize capture as the other screens. |
+
+Checked and clean in phase 2: the wordmark in both themes, PIN card contrast (`accent-on-fill`), the ink countdown strip, notices (tinted bands, no left borders), admin case outcome cards (radio semantics, 2px selected border, no shadows), no `input[type=file]` anywhere evidence is taken (asserted in e2e), and every new screen at 390px with no horizontal scroll.
+
 ## Checked and intentionally kept
 
-- **Cards** are used only for discrete objects: active orders, active jobs, batch suggestions, pending runner applications. Settings, stats, receipts and explanations are rows, rules and type.
+- **Cards** are used only for discrete objects: active orders, run stops, suggested runs, pending runner applications, case outcomes. Settings, stats, receipts and explanations are rows, rules and type.
 - **Notices** are full tinted bands with an icon. No colored left borders.
 - **Unread notifications** have a small mustard square. It's real state (unread), not decoration, and it never pulses.
 - **The landing tower animation** is the only looping motion; it stops under `prefers-reduced-motion` (screenshots are taken with reduced motion, showing the bag parked at floor 14).
-- **The landing page** avoids the template: asymmetric hero built around the tower, left-aligned editorial type, numbered how-it-works lists (no icon cards), real components in phone frames, real prices from the pricing settings, no stats, testimonials or logos, and a clear "not affiliated with NYU" line.
+- **The landing page** avoids the template: asymmetric hero built around the tower, left-aligned editorial type, numbered how-it-works lists (no icon cards), real components in phone frames, real prices from the pricing settings, no stats, testimonials or logos, and a clear "not affiliated with NYU or DoorDash" line.
 - **Buttons** are 6px radius everywhere (not pills). Headings are left-aligned; only empty states center.
 - **Contrast**: every text/background token pair was computed (WCAG formula) and passes AA in both themes. See DESIGN.md §3.

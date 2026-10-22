@@ -18,7 +18,7 @@ const DEMO_RUN: BoardJob[] = [
   demoJob("b", "Waverly Bagel Co.", 12, 238, 50, 6),
   demoJob("c", "8th Street Corner Store", 14, 314, 100, 2),
   demoJob("d", "Greene Street Ramen", 16, 263, 0, 24),
-  demoJob("e", "Fifth Ave Poke Bar", 9, 450, 200, 1, "Unlocks after 6 more deliveries"),
+  demoJob("e", "Fifth Ave Poke Bar", 9, 450, 200, 1, "Available after 6 more deliveries"),
 ];
 function demoTimes() {
   const now = Date.now();

@@ -216,13 +216,13 @@ export function OrderForm({
         />
         <div className="grid grid-cols-2 gap-4">
           <Input
-            label="Food total on your receipt ($)"
+            label="Food total ($)"
             inputMode="decimal"
             value={v.foodTotal}
             onChange={set("foodTotal")}
             error={fields.foodTotal}
             placeholder="14.50"
-            hint="Before our fees. It caps any food credit if something goes wrong."
+            hint="From your receipt, before our fees. It caps any food credit if something goes wrong."
           />
           <Select label="Bags" value={String(bags)} onChange={(e) => setBags(Number(e.target.value))} hint={bagFeeCents > 0 ? `${formatCents(bagFeeCents)} per bag after the first` : undefined}>
             {Array.from({ length: maxBags }, (_, i) => i + 1).map((n) => (

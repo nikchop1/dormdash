@@ -123,7 +123,7 @@ describe("runner levels", () => {
     expect(withinLimit(2001, l1)).toBe(false);
     expect(activeFoodCap(l1)).toBe(4000);
     expect(activeFoodCap(runnerLevel(40, 0, tiers))).toBeNull();
-    expect(unlockCopy(l1, 2500, tiers)).toBe("Unlocks after 7 more deliveries");
+    expect(unlockCopy(l1, 2500, tiers)).toBe("Available after 7 more deliveries");
   });
   it("an upheld case drops the runner back one level", () => {
     const off = demotedOffset(35, 0, tiers);

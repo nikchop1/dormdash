@@ -38,7 +38,7 @@ test("customer and runner complete a food-for-PIN delivery end to end", async ({
   await customer.getByLabel("Order number").fill("7731");
   await customer.getByLabel("Confirmation screenshot").setInputFiles(photoFile("receipt.png"));
   await expect(customer.getByText("Uploaded")).toBeVisible();
-  await customer.getByLabel("Food total on your receipt ($)").fill("14.50");
+  await customer.getByLabel("Food total ($)").fill("14.50");
   await expect(customer.getByRole("button", { name: "Review" })).toBeEnabled();
   await customer.getByRole("button", { name: "Review" }).click();
   const sheet = customer.getByRole("dialog", { name: "Confirm and pay" });

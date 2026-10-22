@@ -62,7 +62,7 @@ export const templates = {
       body: approved
         ? [
             "Your runner application was approved.",
-            "Add your PayPal email for payouts, pick a few shifts, then flip on-shift when you're ready to run.",
+            "Set up payouts (bank + identity, through Stripe), pick a few shifts, then flip on-shift when you're ready to run.",
             ...(note ? [`Note from the team: ${note}`] : []),
           ]
         : [

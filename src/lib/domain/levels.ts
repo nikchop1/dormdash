@@ -53,5 +53,5 @@ export function unlockCopy(lvl: RunnerLevel, foodValueCents: number, tiers: Leve
   const unlock = t.find((x) => x.maxFoodCents === null || foodValueCents <= x.maxFoodCents);
   if (!unlock) return null;
   const more = Math.max(1, unlock.minDeliveries - lvl.progress);
-  return `Unlocks after ${more} more ${more === 1 ? "delivery" : "deliveries"}`;
+  return `Available after ${more} more ${more === 1 ? "delivery" : "deliveries"}`;
 }

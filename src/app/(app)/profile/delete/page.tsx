@@ -34,7 +34,7 @@ export default function DeleteAccountPage() {
         <ul className="divide-y divide-line border-y border-line text-small">
           <li className="py-3">Your name, email, phone, room and photo are erased and you&rsquo;re logged out everywhere.</li>
           <li className="py-3">Past orders stay in our records as &ldquo;Deleted user&rdquo; so runners&rsquo; earnings and receipts still add up.</li>
-          <li className="py-3">If you&rsquo;re a runner, any unpaid earnings still go out on the next payout to your PayPal email on file.</li>
+          <li className="py-3">If you&rsquo;re a runner, any earnings not yet transferred still go to your Stripe payout account.</li>
           <li className="py-3">You can&rsquo;t delete while an order is in progress or a problem report is open.</li>
         </ul>
         <Button variant="danger" size="lg" onClick={() => setOpen(true)} className="self-start">

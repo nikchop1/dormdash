@@ -137,7 +137,7 @@ const GROUPS: { title: string; fields: { k: NumKey; l: string; money?: boolean; 
   {
     title: "Handoff timers",
     fields: [
-      { k: "doorCountdownSeconds", l: "Door countdown (s)", hint: "Before “Customer not here” unlocks." },
+      { k: "doorCountdownSeconds", l: "Door countdown (s)", hint: "Before “Customer not here” is available." },
       { k: "runnerAbsentGraceSeconds", l: "Runner-absent grace (s)", hint: "After “I’m at my door”, then a case opens." },
       { k: "presentWindowAfterSeconds", l: "“I’m at my door” visible for (s)", hint: "After the countdown ends." },
       { k: "pinClaimWindowSeconds", l: "“Gave PIN, no food” window (s)" },

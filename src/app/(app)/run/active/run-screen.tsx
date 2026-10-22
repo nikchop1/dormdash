@@ -347,7 +347,7 @@ function DeliveryStop({ o, now }: { o: RunOrder; now: number | null }) {
       </div>
       {o.atDoorAt && !canNoShow && !o.customerPresent && (
         <p className="text-small text-ink-3">
-          &ldquo;Customer not here&rdquo; unlocks when the countdown ends{o.calls === 0 ? " and you've called at least once" : ""}. You&rsquo;d get the full {formatCents(o.noShowPayCents)} and can keep or toss the food.
+          &ldquo;Customer not here&rdquo; becomes available when the countdown ends{o.calls === 0 ? " and you've called at least once" : ""}. You&rsquo;d get the full {formatCents(o.noShowPayCents)} and can keep or toss the food.
         </p>
       )}
       <button type="button" onClick={() => setProblem(true)} className="link inline-flex items-center gap-1.5 self-start text-small font-semibold text-ink-2">
@@ -408,7 +408,7 @@ export function RunScreen({ orders, stops, freeDropsPerWeek }: { orders: RunOrde
       <ol className="flex flex-col gap-3" aria-label="Stops">
         {stops.map((s, i) => {
           const isCurrent = i === current;
-          const title = s.kind === "pickup" ? `Pick up at ${s.spotName}` : `${byId[s.order.id].building} · room ${s.order.room}`;
+          const title = s.kind === "pickup" ? `Pick up at ${s.spotName}` : `Room ${s.order.room}`;
           return (
             <li
               key={s.kind === "pickup" ? `p-${s.spotId}` : `d-${s.order.id}`}
@@ -420,7 +420,11 @@ export function RunScreen({ orders, stops, freeDropsPerWeek }: { orders: RunOrde
                   {s.done ? <Check className="size-4" strokeWidth={3} /> : i + 1}
                 </span>
                 {s.kind === "delivery" && <FloorBadge floor={s.order.floor} size="sm" />}
-                <h2 className={cn("min-w-0 flex-1 truncate font-semibold", s.done && "text-ink-2")}>{title}</h2>
+                <h2 className={cn("min-w-0 flex-1 font-semibold", s.done && "text-ink-2")}>
+                  {/* The room number is what the runner needs at a glance: never truncate it. */}
+                  <span className="block truncate">{title}</span>
+                  {s.kind === "delivery" && <span className="block truncate text-small font-normal text-ink-3">{byId[s.order.id].building}</span>}
+                </h2>
                 {s.kind === "delivery" && (
                   <Tag tone={byId[s.order.id].handoff === "lobby" ? "warning" : "neutral"}>{byId[s.order.id].handoff === "lobby" ? "Lobby" : byId[s.order.id].customerFirst}</Tag>
                 )}

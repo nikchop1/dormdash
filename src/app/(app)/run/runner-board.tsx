@@ -190,7 +190,7 @@ export function RunnerBoard({
               jobs={r.jobs.map((j) => ({ ...j, createdAt: j.createdAt.toISOString() }))}
               action={
                 <Button variant="ink" block loading={busy === r.key} disabled={!!busy} onClick={() => claim(r.jobs.map((j) => j.id), r.key)}>
-                  Take all {r.jobs.length}
+                  {r.jobs.length === 1 ? "Take it" : `Take all ${r.jobs.length}`}
                 </Button>
               }
             />

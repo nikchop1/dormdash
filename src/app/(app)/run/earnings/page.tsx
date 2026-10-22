@@ -103,7 +103,7 @@ export default async function EarningsPage({ searchParams }: { searchParams: Pro
                   <span className="font-medium">{fmtDate(p.paid_at ?? p.created_at)}</span>
                   <Tag tone={p.status === "paid" ? "success" : p.status === "failed" ? "danger" : "warning"}>{p.status}</Tag>
                 </span>
-                <span className="block truncate text-small text-ink-3">{p.provider === "demo" ? "Demo payout" : `PayPal · ${p.receiver}`}{p.error ? ` · ${p.error}` : ""}</span>
+                <span className="block truncate text-small text-ink-3">{p.provider === "demo" ? "Demo payout" : "Stripe transfer"}{p.error ? ` · ${p.error}` : ""}</span>
               </Row>
             ))}
           </List>

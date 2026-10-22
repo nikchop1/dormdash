@@ -46,6 +46,15 @@ const ROLES: { role: string; email: string | null; shots: Shot[] }[] = [
       { name: "notification-settings", path: "/profile/notifications" },
       { name: "notifications", path: "/notifications" },
       { name: "run-pitch", path: "/run" },
+      { name: "case", path: (p) => caseHref(p) },
+    ],
+  },
+  {
+    role: "customer-credit",
+    email: "customer4@nyu.edu",
+    shots: [
+      { name: "order-new", path: (p) => firstHref(p, "/home", 'ul[aria-label="Pickup spots"] a') },
+      { name: "profile", path: "/profile" },
     ],
   },
   {
@@ -53,7 +62,7 @@ const ROLES: { role: string; email: string | null; shots: Shot[] }[] = [
     email: "runner1@nyu.edu",
     shots: [
       { name: "run-board", path: "/run" },
-      { name: "job", path: (p) => firstHref(p, "/run", 'section:has(h2:text("Your jobs")) a') },
+      { name: "run-active", path: "/run/active" },
       { name: "shifts", path: "/run/shifts" },
       { name: "earnings", path: "/run/earnings" },
     ],
@@ -65,8 +74,9 @@ const ROLES: { role: string; email: string | null; shots: Shot[] }[] = [
     shots: [
       { name: "dashboard", path: "/admin" },
       { name: "orders", path: "/admin/orders" },
-      { name: "disputes", path: "/admin/disputes" },
-      { name: "dispute", path: (p) => firstHref(p, "/admin/disputes", 'ul a[href^="/admin/disputes/"]') },
+      { name: "cases", path: "/admin/cases" },
+      { name: "case", path: (p) => firstHref(p, "/admin/cases", 'ul a[href^="/admin/cases/"]') },
+      { name: "law-enforcement", path: "/admin/law-enforcement" },
       { name: "runner-applications", path: "/admin/runners" },
       { name: "users", path: "/admin/users" },
       { name: "places", path: "/admin/places" },
@@ -75,6 +85,18 @@ const ROLES: { role: string; email: string | null; shots: Shot[] }[] = [
     ],
   },
 ];
+
+/** The first case linked from any of the customer's past orders. */
+async function caseHref(page: Page) {
+  await page.goto("/orders");
+  const orders = await page.locator('ul[aria-label="Past orders"] a').evaluateAll((as) => as.map((a) => a.getAttribute("href")));
+  for (const o of orders.slice(0, 8)) {
+    await page.goto(o!);
+    const href = await page.locator('a[href^="/cases/"]').first().getAttribute("href", { timeout: 1000 }).catch(() => null);
+    if (href) return href;
+  }
+  throw new Error("No case link on recent orders");
+}
 
 async function capture(browser: Browser, role: (typeof ROLES)[number], width: number, theme: "light" | "dark") {
   const ctx = await browser.newContext({ viewport: { width, height: width < 600 ? 844 : 900 }, colorScheme: theme, deviceScaleFactor: 1, reducedMotion: "reduce" });
@@ -120,5 +142,25 @@ test("capture the verify-email screen for a new signup", async ({ browser }) => 
       await page.screenshot({ path: `${OUT}/unverified--verify-email--${w}-${t}.png`, fullPage: true });
       await ctx.close();
       await new Promise((res) => setTimeout(res, 5)); // unique phone suffix per capture
+    }
+});
+
+test("capture the live camera on the run screen", async ({ browser }) => {
+  for (const w of WIDTHS)
+    for (const t of THEMES) {
+      const file = `runner--live-camera--${w}-${t}`;
+      if (ONLY && !ONLY.test(file)) continue;
+      const ctx = await browser.newContext({ viewport: { width: w, height: 900 }, colorScheme: t, permissions: ["camera", "geolocation"], geolocation: { latitude: 40.7339, longitude: -73.9962 } });
+      const page = await ctx.newPage();
+      await page.request.post("/api/auth/login", { data: { email: "runner1@nyu.edu", password: DEMO_PASSWORD } });
+      await page.goto("/run/active", { waitUntil: "networkidle" });
+      await page.getByRole("button", { name: "Open camera" }).first().click();
+      await page.getByRole("button", { name: "Take photo" }).waitFor();
+      await page.waitForTimeout(600);
+      const height = await page.evaluate(() => document.documentElement.scrollHeight);
+      await page.setViewportSize({ width: w, height: Math.min(Math.max(height, 600), 8000) });
+      await page.waitForTimeout(300);
+      await page.screenshot({ path: `${OUT}/${file}.png` });
+      await ctx.close();
     }
 });
