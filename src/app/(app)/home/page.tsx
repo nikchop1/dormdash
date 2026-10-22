@@ -41,7 +41,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         </Notice>
       )}
       <header className="pt-5 pb-5">
-        <p className="overline">{sp.welcome ? "You're verified. Welcome in." : `Hey ${firstName}`}</p>
+        <p className="eyebrow">{sp.welcome ? "You're verified. Welcome in." : `Hey ${firstName}`}</p>
         <div className="mt-2 flex items-end justify-between gap-4">
           <h1 className="font-display text-display leading-[0.95] font-black uppercase">
             What are we<br />bringing up?
@@ -63,7 +63,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
               className="flex items-center gap-4 rounded-md bg-ink-fill px-4 py-3.5 text-on-ink-fill transition-opacity hover:opacity-95"
             >
               <span className="flex-1">
-                <span className="block text-caption font-semibold tracking-wide text-accent uppercase">{STATUS_LABEL[o.status]}</span>
+                <span className="block text-caption font-semibold tracking-wide text-accent-on-fill uppercase">{STATUS_LABEL[o.status]}</span>
                 <span className="block font-semibold">{o.spot_name}</span>
               </span>
               {o.eta && (

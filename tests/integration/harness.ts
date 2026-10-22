@@ -2,7 +2,7 @@ import { createPgliteDb } from "@/lib/db/pglite";
 import { migrate, setDbForTests, type Db } from "@/lib/db";
 import { localAuth } from "@/lib/auth/local";
 import { recomputeDistances } from "@/lib/services/places";
-import { useBrowser } from "./setup";
+import { switchBrowser } from "./setup";
 
 export const PASSWORD = "Elevator14";
 
@@ -76,7 +76,7 @@ export async function call<T = Record<string, unknown>>(
 
 /** Log a browser in through the real login route. */
 export async function loginAs(browser: string, email: string, password = PASSWORD) {
-  useBrowser(browser);
+  switchBrowser(browser);
   const { POST } = await import("@/app/api/auth/login/route");
   const r = await call(POST, { body: { email, password } });
   if (r.status !== 200 || (r.body as { ok?: boolean }).ok !== true) throw new Error(`login failed for ${email}: ${JSON.stringify(r.body)}`);

@@ -108,7 +108,7 @@ export default async function RunPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 md:px-6">
-      <PageHeader overline="Run" title={p.on_shift ? "You're on shift" : "You're off shift"} />
+      <PageHeader overline={`Hey ${p.full_name.split(" ")[0]}`} title="Run" />
       <ShiftToggle on={p.on_shift} disabled={needsPayout} />
 
       <div className="tnum mt-4 grid grid-cols-3 divide-x divide-line border-y border-line text-center">

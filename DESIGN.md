@@ -49,6 +49,7 @@ never as a big decorative wash.
 | `--accent-press` | `#C48D00` | `#D9A513` | Pressed. |
 | `--on-accent` | `#1B1A17` | `#15130F` | Text on mustard (9:1). |
 | `--accent-ink` | `#7A5600` | `#F2C14A` | Accent-colored text/icons on paper (AA). |
+| `--accent-on-fill` | `#EFB21C` | `#7A5600` | Accent marks sitting on an `ink-fill` surface (PIN digits, timeline checks, the floor badge arrow). Dark mode inverts `ink-fill` to cream, so this deepens to stay AA. |
 | `--accent-soft` | `#F7E3A8` | `#3A2F12` | Tinted highlight (busy pricing note, selected tip). |
 | `--success` / `-soft` | `#186A42` / `#D6EBDD` | `#5CC48C` / `#173326` | Delivered, payouts sent. |
 | `--warning` / `-soft` | `#8F5A00` / `#F5E3BC` | `#E8B04A` / `#3A2C10` | Busy pricing, thin coverage, lobby handoff. |

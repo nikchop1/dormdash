@@ -16,7 +16,7 @@ export function FloorBadge({ floor, size = "md", className }: { floor: number | 
       className={cn("tnum inline-flex items-center rounded-xs bg-ink-fill font-display leading-none font-extrabold text-on-ink-fill", s, className)}
       aria-label={`Floor ${floor}`}
     >
-      <svg viewBox="0 0 10 8" className={cn(tri, "text-accent")} aria-hidden>
+      <svg viewBox="0 0 10 8" className={cn(tri, "text-accent-on-fill")} aria-hidden>
         <path d="M5 0 10 8H0z" fill="currentColor" />
       </svg>
       <span aria-hidden>{floor}</span>
@@ -56,7 +56,7 @@ export function PageHeader({
       )}
       <div className="flex items-end justify-between gap-4">
         <div className="min-w-0">
-          {overline && <p className="overline mb-1">{overline}</p>}
+          {overline && <p className="eyebrow mb-1">{overline}</p>}
           <h1 className="font-display text-title font-extrabold tracking-tight md:text-display">{title}</h1>
         </div>
         {action}

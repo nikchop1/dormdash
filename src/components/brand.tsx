@@ -6,7 +6,7 @@ export function LogoMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 28 28" className={cn("size-7", className)} aria-hidden>
       <rect x="1" y="1" width="26" height="26" rx="2" fill="var(--ink-fill)" />
-      <path d="M14 4.5 18 9.5H10z" fill="var(--accent)" />
+      <path d="M14 4.5 18 9.5H10z" fill="var(--accent-on-fill)" />
       <rect x="6" y="12" width="7" height="12" fill="var(--on-ink-fill)" />
       <rect x="15" y="12" width="7" height="12" fill="var(--on-ink-fill)" />
     </svg>

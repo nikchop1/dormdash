@@ -133,8 +133,8 @@ describe("role protection", () => {
     expect((await call(decide, { body: { approve: true }, params: { id: ids.alice } })).status).toBe(403);
     expect((await call(exportCsv, { method: "GET", url: "http://localhost/api/admin/export?report=summary" })).status).toBe(403);
     expect((await call(pricing, { method: "PUT", body: {} })).status).toBe(403);
-    const { useBrowser } = await import("./setup");
-    useBrowser("anonymous");
+    const { switchBrowser } = await import("./setup");
+    switchBrowser("anonymous");
     expect((await call(exportCsv, { method: "GET", url: "http://localhost/api/admin/export?report=summary" })).status).toBe(401);
   });
 

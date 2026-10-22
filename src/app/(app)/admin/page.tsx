@@ -10,6 +10,7 @@ import { formatCents } from "@/lib/domain/pricing";
 import { cn } from "@/lib/cn";
 import { BarChart, Heatmap } from "@/components/charts";
 import { Notice, SectionTitle } from "@/components/ui/misc";
+import { RunPayouts } from "./run-payouts";
 
 export const metadata: Metadata = { title: "Admin" };
 
@@ -58,7 +59,7 @@ export default async function AdminOverview({ searchParams }: { searchParams: Pr
     <div className="pb-10">
       <header className="flex flex-wrap items-end justify-between gap-4 pt-6 pb-4">
         <div>
-          <p className="overline">Traction</p>
+          <p className="eyebrow">Traction</p>
           <h1 className="font-display text-display font-black uppercase">Last {days} days</h1>
         </div>
         <div className="flex items-center gap-1 rounded-sm bg-sunken p-1" role="group" aria-label="Date range">
@@ -95,7 +96,7 @@ export default async function AdminOverview({ searchParams }: { searchParams: Pr
           </div>
         ))}
       </section>
-      <div className="mt-2 flex justify-end"><Csv report="summary" days={days}>Summary CSV</Csv></div>
+      <div className="mt-2 flex items-center justify-end gap-2"><RunPayouts /><Csv report="summary" days={days}>Summary CSV</Csv></div>
 
       <div className="mt-8 grid gap-10 lg:grid-cols-2">
         <section>

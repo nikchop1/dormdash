@@ -39,7 +39,7 @@ export function OrderStatusHero(p: StatusHeroProps) {
     <section aria-label="Order status">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="overline">
+          <p className="eyebrow">
             Order <span className="tnum">{p.code}</span> · {p.spotName}
           </p>
           {cancelled ? (
@@ -119,7 +119,7 @@ export function OrderStatusHero(p: StatusHeroProps) {
                   aria-hidden
                   className={cn(
                     "relative z-10 flex size-6 shrink-0 items-center justify-center rounded-xs border-2 transition-colors duration-200",
-                    done ? "border-ink bg-ink-fill text-accent" : "border-line bg-paper",
+                    done ? "border-ink bg-ink-fill text-accent-on-fill" : "border-line bg-paper",
                   )}
                 >
                   {done && <Check className="size-3.5" strokeWidth={3.5} />}

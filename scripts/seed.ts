@@ -324,6 +324,13 @@ async function main() {
     }
   }
 
+  // Older late strikes count as already reviewed by an admin: keep at most one active
+  // per runner so seeded runners stay consistent with the 3-strike auto-suspension rule.
+  await db.query(
+    `update public.strikes set voided = true where id not in (
+       select distinct on (runner_id) id from public.strikes order by runner_id, created_at desc)`,
+  );
+
   // Older payouts so earnings history isn't empty: pay out everything older than a week.
   for (const k of ["r1", "r2", "r3", "r4"]) {
     const [bal] = await db.query<{ amount: number }>(

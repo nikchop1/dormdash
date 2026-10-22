@@ -1,7 +1,7 @@
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { Db } from "@/lib/db";
 import { call, fixtures, freshDb, loginAs, makeUser, PASSWORD } from "./harness";
-import { clearBrowsers, cookieValue, useBrowser } from "./setup";
+import { clearBrowsers, cookieValue, switchBrowser } from "./setup";
 import { POST as signup } from "@/app/api/auth/signup/route";
 import { POST as login } from "@/app/api/auth/login/route";
 import { POST as logout } from "@/app/api/auth/logout/route";
@@ -75,7 +75,7 @@ describe("signup", () => {
     expect(p.floor).toBe(14);
     expect(p.terms_accepted_at).not.toBeNull();
 
-    useBrowser("other");
+    switchBrowser("other");
     const l = await call(login, { body: { email: "jl1234@nyu.edu", password: "elevator14" } });
     expect(l.status).toBe(200);
     expect(l.body).toMatchObject({ ok: false, verify: true, next: "/verify-email" });
@@ -95,7 +95,7 @@ describe("signup", () => {
   });
 
   it("resend has a cooldown", async () => {
-    useBrowser("resender");
+    switchBrowser("resender");
     await call(login, { body: { email: "jl1234@nyu.edu", password: "elevator14" } }); // sets pending cookie
     expect((await call(resend)).status).toBe(200);
     const again = await call(resend);
@@ -104,7 +104,7 @@ describe("signup", () => {
   });
 
   it("verification link signs the user in and marks the email verified", async () => {
-    useBrowser("verifier");
+    switchBrowser("verifier");
     const link = await lastLink("jl1234@nyu.edu");
     expect(link).toContain("/auth/confirm?token_hash=");
     const res = await follow(link!);
@@ -114,7 +114,7 @@ describe("signup", () => {
     const u = await getSessionUser();
     expect(u?.emailVerified).toBe(true);
     // The same link can't be reused.
-    useBrowser("replay");
+    switchBrowser("replay");
     const again = await follow(link!);
     expect(again.headers.get("location")).toContain("error=expired_link");
   });
@@ -132,7 +132,7 @@ describe("login, lockout and logout", () => {
   });
 
   it("gives a clear message for wrong credentials and locks after 5 failures", async () => {
-    useBrowser("attacker");
+    switchBrowser("attacker");
     let r = await call(login, { body: { email: "ava@nyu.edu", password: "nope12345" } });
     expect(r.status).toBe(401);
     expect(JSON.stringify(r.body)).toMatch(/don't match\. 4 tries left/);
@@ -166,7 +166,7 @@ describe("password reset", () => {
   });
 
   it("forgot → email → link → new password → logged in with it", async () => {
-    useBrowser("forgetful");
+    switchBrowser("forgetful");
     const r = await call(forgot, { body: { email: "noah@nyu.edu" } });
     expect(r.status).toBe(200);
     // Same answer for unknown emails (no account enumeration).
@@ -181,13 +181,13 @@ describe("password reset", () => {
     const ok = await call(reset, { body: { password: "NewElevator99", confirmPassword: "NewElevator99" } });
     expect(ok.status).toBe(200);
 
-    useBrowser("fresh");
+    switchBrowser("fresh");
     expect((await call(login, { body: { email: "noah@nyu.edu", password: PASSWORD } })).status).toBe(401);
     await loginAs("fresh2", "noah@nyu.edu", "NewElevator99");
   });
 
   it("reset without a recovery session is rejected", async () => {
-    useBrowser("nobody");
+    switchBrowser("nobody");
     const r = await call(reset, { body: { password: "NewElevator99", confirmPassword: "NewElevator99" } });
     expect(r.status).toBe(401);
   });

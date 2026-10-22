@@ -27,7 +27,7 @@ export default async function AdminPlaces() {
           <thead>
             <tr className="border-b border-line text-left text-caption tracking-wide text-ink-3 uppercase">
               <th className="py-2 font-semibold">Name</th><th className="py-2 font-semibold">Address</th><th className="py-2 font-semibold">Lat, lng</th>
-              <th className="py-2 text-right font-semibold">Floors</th><th className="py-2 font-semibold">Door delivery</th><th className="py-2" />
+              <th className="py-2 text-right font-semibold">Floors</th><th className="py-2 pl-6 font-semibold">Door delivery</th><th className="py-2" />
             </tr>
           </thead>
           <tbody className="tnum divide-y divide-line">
@@ -37,7 +37,7 @@ export default async function AdminPlaces() {
                 <td className="py-2.5 text-ink-2">{b.address}</td>
                 <td className="py-2.5 text-ink-2">{b.lat.toFixed(5)}, {b.lng.toFixed(5)}</td>
                 <td className="py-2.5 text-right">{b.floor_count}</td>
-                <td className="py-2.5 text-ink-2">{b.door_requires_resident ? "Resident runners only" : "Any runner"}</td>
+                <td className="py-2.5 pl-6 text-ink-2">{b.door_requires_resident ? "Resident runners only" : "Any runner"}</td>
                 <td className="py-2.5 text-right"><BuildingEditor building={{ id: b.id, name: b.name, shortName: b.short_name, address: b.address, lat: b.lat, lng: b.lng, floorCount: b.floor_count, doorRequiresResident: b.door_requires_resident, active: b.active }} /></td>
               </tr>
             ))}

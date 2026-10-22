@@ -13,7 +13,7 @@ export default async function ShiftsPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 md:px-6">
       <PageHeader back={{ href: "/run", label: "Run" }} title="Your week">
-        Tap the hours you&rsquo;re usually free. Hours with a dashed outline have fewer than 2 runners, so you&rsquo;ll get more jobs there.
+        Tap the hours you&rsquo;re usually free. Dashed hours have nobody covering them yet, so you&rsquo;ll get every job there.
       </PageHeader>
       <ShiftGrid initial={mine.map((s) => `${s.day_of_week}-${s.start_hour}`)} coverage={Object.fromEntries(cov)} />
     </div>

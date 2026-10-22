@@ -27,7 +27,7 @@ export function PinCard({ pin, handoff }: { pin: string; handoff: "door" | "lobb
       </div>
       <p className="mt-3 flex gap-2" aria-label={`PIN ${pin.split("").join(" ")}`}>
         {pin.split("").map((d, i) => (
-          <span key={i} aria-hidden className="tnum flex h-16 w-14 items-center justify-center rounded-sm bg-on-ink-fill/10 font-display text-display-lg font-black text-accent">
+          <span key={i} aria-hidden className="tnum flex h-16 w-14 items-center justify-center rounded-sm bg-on-ink-fill/10 font-display text-display-lg font-black text-accent-on-fill">
             {d}
           </span>
         ))}

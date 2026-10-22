@@ -63,10 +63,10 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
         {/* Hero: copy left, tower right. Asymmetric on purpose. */}
         <section className="mx-auto grid max-w-6xl gap-10 px-4 pt-8 pb-16 md:grid-cols-12 md:px-8 md:pt-16">
           <div className="md:col-span-7">
-            <p className="overline">NYU dorms · around Washington Square</p>
+            <p className="eyebrow">NYU dorms · around Washington Square</p>
             <h1 className="mt-4 font-display text-[4.25rem] leading-[0.86] font-black tracking-tight uppercase md:text-[7.5rem]">
-              Floor 14.<br />Elevator&rsquo;s<br />slow.<br />
-              <span className="bg-accent px-2 text-on-accent">We got you.</span>
+              Floor 14.<br />Elevator&rsquo;s<br />slow.
+              <span className="mt-3 block w-fit bg-accent px-3 pt-2 pb-1 text-on-accent md:mt-4">We got you.</span>
             </h1>
             <p className="mt-8 max-w-md text-body-lg text-ink-2">
               Order pickup from a spot near your dorm like you normally would. Another NYU student grabs the bag on their way back and brings it up to your floor. You pay them a couple bucks, not a delivery app markup.
@@ -162,7 +162,7 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
                 />
               </Phone>
               <Phone label="What runners see on shift.">
-                <p className="overline">Job board · 4 open</p>
+                <p className="eyebrow">Job board · 4 open</p>
                 <div className="mt-3">
                   <JobRows
                     jobs={[
@@ -224,7 +224,7 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
                 ["Who are the runners?", "NYU students who applied with their student ID and got approved by a person. Three strikes and they're paused."],
               ].map(([t, d]) => (
                 <div key={t} className="grid gap-1 py-5 md:grid-cols-3 md:gap-6">
-                  <dt className="font-semibold text-accent">{t}</dt>
+                  <dt className="font-semibold text-accent-on-fill">{t}</dt>
                   <dd className="text-small opacity-85 md:col-span-2">{d}</dd>
                 </div>
               ))}

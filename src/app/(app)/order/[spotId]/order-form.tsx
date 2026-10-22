@@ -167,7 +167,7 @@ export function OrderForm({
 
       <section aria-labelledby="step1" className="flex flex-col gap-5">
         <div className="border-t-2 border-line-strong pt-3">
-          <p className="overline">Step 1</p>
+          <p className="eyebrow">Step 1</p>
           <h2 id="step1" className="text-heading font-semibold">Order it yourself first</h2>
           <p className="mt-1 text-small text-ink-2">
             Place a pickup order with {spot.name} in their app or site, under your name, and pay them directly. We never touch the food money.
@@ -191,7 +191,7 @@ export function OrderForm({
 
       <section aria-labelledby="step2" className="flex flex-col gap-5">
         <div className="border-t-2 border-line-strong pt-3">
-          <p className="overline">Step 2</p>
+          <p className="eyebrow">Step 2</p>
           <h2 id="step2" className="text-heading font-semibold">Where and when</h2>
         </div>
         <Select label="Building" value={v.buildingId} onChange={set("buildingId")} error={fields.buildingId}>
@@ -239,7 +239,7 @@ export function OrderForm({
 
       <section aria-labelledby="step3" className="flex flex-col gap-4">
         <div className="border-t-2 border-line-strong pt-3">
-          <p className="overline">Step 3</p>
+          <p className="eyebrow">Step 3</p>
           <h2 id="step3" className="text-heading font-semibold">Tip your runner</h2>
           <p className="mt-1 text-small text-ink-2">100% of the tip goes to them. We never take a cut of tips.</p>
         </div>

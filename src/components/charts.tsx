@@ -69,9 +69,9 @@ export function Heatmap({ cells }: { cells: { dow: number; hour: number; orders:
   const [hover, setHover] = useState<{ dow: number; hour: number; n: number } | null>(null);
   const max = Math.max(1, ...cells.map((c) => c.orders));
   const get = (d: number, h: number) => cells.find((c) => c.dow === d && c.hour === h)?.orders ?? 0;
-  // Five sequential steps mixed from the accent token toward the surface.
+  // Five sequential steps: more accent over the surface = more orders, in both themes.
   const step = (n: number) => (n === 0 ? 0 : Math.min(5, Math.ceil((n / max) * 5)));
-  const fills = ["var(--surface)", "color-mix(in oklab, var(--accent) 18%, var(--surface))", "color-mix(in oklab, var(--accent) 38%, var(--surface))", "color-mix(in oklab, var(--accent) 62%, var(--surface))", "var(--accent)", "color-mix(in oklab, var(--accent) 70%, var(--ink))"];
+  const fills = ["var(--surface)", ...[15, 35, 60, 85].map((n) => `color-mix(in oklab, var(--accent) ${n}%, var(--surface))`), "var(--accent)"];
   return (
     <figure>
       <div className="mb-2 flex h-5 items-baseline justify-between text-small" aria-live="polite">
@@ -84,11 +84,11 @@ export function Heatmap({ cells }: { cells: { dow: number; hour: number; orders:
         )}
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[560px] border-separate border-spacing-[2px]" onMouseLeave={() => setHover(null)}>
+        <table className="w-full min-w-[560px] table-fixed border-separate border-spacing-[2px]" onMouseLeave={() => setHover(null)}>
           <caption className="sr-only">Orders by weekday and hour</caption>
           <thead>
             <tr>
-              <th className="w-10" />
+              <th className="w-10" aria-hidden />
               {Array.from({ length: 24 }).map((_, h) => (
                 <th key={h} scope="col" className="tnum text-[10px] font-medium text-ink-3">{h % 3 === 0 ? h : ""}</th>
               ))}

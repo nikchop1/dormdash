@@ -2,7 +2,7 @@
 export function LegalHeader({ title, updated }: { title: string; updated: string }) {
   return (
     <header className="mb-8 border-b-2 border-line-strong pb-6">
-      <p className="overline">Last updated {updated}</p>
+      <p className="eyebrow">Last updated {updated}</p>
       <h1 className="mt-2 font-display text-display leading-none font-black uppercase">{title}</h1>
       <p className="mt-4 rounded-sm bg-warning-soft px-4 py-3 text-small font-semibold text-ink">
         [LAWYER REVIEW NEEDED] This is a plain-language placeholder written before launch. It has not been reviewed by a lawyer and isn&rsquo;t final.

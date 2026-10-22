@@ -20,7 +20,7 @@ export default async function EarningsPage() {
   if (!["approved", "suspended"].includes(user.profile.runner_status)) redirect("/run");
   const [s, lines, payouts, settings, strikes] = await Promise.all([
     earningsSummary(user.id),
-    earningLines(user.id),
+    earningLines(user.id, 25),
     payoutHistory(user.id),
     getPricing(),
     asUser(user.id, (t) =>
@@ -37,20 +37,20 @@ export default async function EarningsPage() {
 
       <div className="grid grid-cols-2 gap-x-6 gap-y-5 border-y border-line py-5">
         <div>
-          <p className="overline">Today</p>
+          <p className="eyebrow">Today</p>
           <Money cents={s.todayCents} className="font-display text-display-lg leading-none font-black" />
         </div>
         <div>
-          <p className="overline">This week</p>
+          <p className="eyebrow">This week</p>
           <Money cents={s.weekCents} className="font-display text-display-lg leading-none font-black" />
           <p className="tnum mt-1 text-small text-ink-3">{s.deliveriesWeek} deliveries · {formatCents(s.tipsWeekCents)} tips</p>
         </div>
         <div>
-          <p className="overline">Ready for payout</p>
+          <p className="eyebrow">Ready for payout</p>
           <Money cents={s.availableCents} className="font-display text-title font-extrabold" />
         </div>
         <div>
-          <p className="overline">On hold</p>
+          <p className="eyebrow">On hold</p>
           <Money cents={s.pendingCents} className="font-display text-title font-extrabold" />
           <p className="mt-1 text-small text-ink-3">{settings.payoutHoldHours}h dispute window</p>
         </div>
@@ -117,7 +117,7 @@ export default async function EarningsPage() {
           <List className="border-t-0">
             {strikes.map((st, i) => (
               <Row key={i}>
-                <span className="font-medium capitalize">{st.reason === "unclaim" ? "Dropped a job" : st.reason === "late" ? "Late delivery" : st.reason === "dispute" ? "Upheld problem report" : "Admin review"}</span>
+                <span className="font-medium">{st.reason === "unclaim" ? "Dropped a job" : st.reason === "late" ? "Late delivery" : st.reason === "dispute" ? "Upheld problem report" : "Admin review"}</span>
                 <span className="tnum block text-small text-ink-3">{fmtDate(st.created_at)}{st.code ? ` · ${st.code}` : ""}{st.note ? ` · ${st.note}` : ""}</span>
               </Row>
             ))}

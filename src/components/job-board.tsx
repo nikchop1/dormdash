@@ -32,7 +32,7 @@ export function JobRows({ jobs, action }: { jobs: BoardJob[]; action?: (job: Boa
             <p className="truncate font-semibold">{j.spotName}</p>
             <p className="tnum truncate text-small text-ink-3">
               {formatMiles(j.distanceMiles)} to {j.buildingShort}
-              {j.scheduledLabel ? ` · for ${j.scheduledLabel}` : ` · ${j.waitedMin} min ago`}
+              {j.scheduledLabel ? ` · for ${j.scheduledLabel}` : ` · ${j.waitedMin}m ago`}
             </p>
           </div>
           <div className="text-right">

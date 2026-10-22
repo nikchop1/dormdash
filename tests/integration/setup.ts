@@ -11,7 +11,7 @@ delete process.env.RESEND_API_KEY;
 delete process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
 /**
- * Each test "browser" has its own cookie jar; `useBrowser(name)` switches which jar
+ * Each test "browser" has its own cookie jar; `switchBrowser(name)` switches which jar
  * next/headers cookies() reads and writes, so one test can act as several users.
  */
 type Jar = Map<string, string>;
@@ -22,7 +22,7 @@ const jar = () => {
   return jars.get(current)!;
 };
 
-export function useBrowser(name: string) {
+export function switchBrowser(name: string) {
   current = name;
 }
 export function clearBrowsers() {

@@ -52,7 +52,7 @@ test("customer and runner complete a delivery end to end", async ({ browser }) =
   const runner = await (await browser.newContext()).newPage();
   await apiLogin(runner, "runner1@nyu.edu");
   await runner.goto("/run");
-  await expect(runner.getByRole("heading", { name: "You're on shift" })).toBeVisible();
+  await expect(runner.getByRole("switch", { name: /On shift/ })).toBeVisible();
   await runner.getByRole("button", { name: "Claim 8th Street Corner Store to floor 11" }).click();
   await expect(runner).toHaveURL(/\/run\/jobs\//);
   await expect(runner.getByText("Name on order")).toBeVisible();

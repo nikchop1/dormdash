@@ -15,7 +15,7 @@ export default async function VerifyEmailPage() {
 
   return (
     <>
-      <p className="overline mb-2">One more thing</p>
+      <p className="eyebrow mb-2">One more thing</p>
       <h1 className="font-display text-display leading-none font-black uppercase">Verify your email</h1>
       <p className="mt-3 text-body-lg text-ink-2">
         We sent a link to {email ? <strong className="font-semibold text-ink">{email}</strong> : "your NYU email"}. Tap it and you&rsquo;re in.

@@ -55,7 +55,7 @@ export function ShiftGrid({ initial, coverage }: { initial: string[]; coverage: 
   return (
     <div>
       <div className="overflow-x-auto pb-2">
-        <table className="w-full min-w-[520px] border-collapse text-small">
+        <table className="w-full min-w-[520px] table-fixed border-collapse text-small">
           <caption className="sr-only">Weekly availability. Each cell is one hour.</caption>
           <thead>
             <tr>
@@ -75,17 +75,17 @@ export function ShiftGrid({ initial, coverage }: { initial: string[]; coverage: 
                   const k = `${day}-${h}`;
                   const on = sel.has(k);
                   const others = (coverage[k] ?? 0) - (initial.includes(k) ? 1 : 0);
-                  const thin = others < 2;
+                  const thin = others === 0;
                   return (
                     <td key={k} className="p-0.5">
                       <button
                         type="button"
                         aria-pressed={on}
-                        aria-label={`${d.l} ${hourLabel(h)}${on ? ", selected" : ""}${thin ? ", thin coverage" : ""}`}
+                        aria-label={`${d.l} ${hourLabel(h)}${on ? ", selected" : ""}${thin ? ", nobody covering yet" : ""}`}
                         onClick={() => toggle(k)}
                         className={cn(
                           "tnum flex h-9 w-full items-center justify-center rounded-xs text-caption font-semibold transition-colors duration-[120ms] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink",
-                          on ? "bg-ink-fill text-accent" : "bg-surface text-ink-3 hover:bg-sunken",
+                          on ? "bg-ink-fill text-accent-on-fill" : "bg-surface text-ink-3 hover:bg-sunken",
                           !on && thin && "border border-dashed border-warning",
                         )}
                       >
@@ -101,7 +101,7 @@ export function ShiftGrid({ initial, coverage }: { initial: string[]; coverage: 
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-caption text-ink-3">
         <span className="flex items-center gap-1.5"><span className="size-3 rounded-xs bg-ink-fill" aria-hidden /> You</span>
-        <span className="flex items-center gap-1.5"><span className="size-3 rounded-xs border border-dashed border-warning bg-surface" aria-hidden /> Thin coverage</span>
+        <span className="flex items-center gap-1.5"><span className="size-3 rounded-xs border border-dashed border-warning bg-surface" aria-hidden /> Nobody covering yet</span>
         <span>Numbers: other runners that hour</span>
       </div>
       <div className="sticky bottom-20 mt-6 flex items-center justify-between gap-4 border-t border-line bg-paper py-3 md:bottom-0">
