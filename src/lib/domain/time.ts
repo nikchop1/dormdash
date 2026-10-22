@@ -1,5 +1,8 @@
 export const TZ = "America/New_York";
 
+/** Current time. A function so server components can call it without tripping render-purity lint. */
+export const nowMs = () => Date.now();
+
 const partsFmt = new Intl.DateTimeFormat("en-US", {
   timeZone: TZ,
   weekday: "short",

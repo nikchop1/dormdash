@@ -12,7 +12,7 @@ export const BUCKETS: Bucket[] = ["avatars", "id-photos", "order-photos"];
 export const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // Vercel's body limit is 4.5MB; clients downscale first.
 export const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
-const useSupabase = () => authMode === "supabase" && !!env.supabaseServiceKey;
+const supabaseStorageOn = () => authMode === "supabase" && !!env.supabaseServiceKey;
 const localRoot = () => path.resolve(env.storageDir);
 
 function safePath(p: string) {
@@ -22,7 +22,7 @@ function safePath(p: string) {
 
 export async function putObject(bucket: Bucket, objectPath: string, bytes: Uint8Array, contentType: string) {
   safePath(objectPath);
-  if (useSupabase()) {
+  if (supabaseStorageOn()) {
     const { error } = await supabaseAdmin().storage.from(bucket).upload(objectPath, bytes, { contentType, upsert: true });
     if (error) throw new Error(`Upload failed: ${error.message}`);
     return;
@@ -34,7 +34,7 @@ export async function putObject(bucket: Bucket, objectPath: string, bytes: Uint8
 }
 
 export async function removeObject(bucket: Bucket, objectPath: string) {
-  if (useSupabase()) {
+  if (supabaseStorageOn()) {
     await supabaseAdmin().storage.from(bucket).remove([objectPath]);
     return;
   }
@@ -43,7 +43,7 @@ export async function removeObject(bucket: Bucket, objectPath: string) {
 
 /** Short-lived URL for a private object (ID cards, order photos). */
 export async function signedUrl(bucket: Bucket, objectPath: string, expiresInSeconds = 600): Promise<string> {
-  if (useSupabase()) {
+  if (supabaseStorageOn()) {
     const { data, error } = await supabaseAdmin().storage.from(bucket).createSignedUrl(objectPath, expiresInSeconds);
     if (error || !data) throw new Error(`Couldn't sign URL: ${error?.message}`);
     return data.signedUrl;
@@ -54,7 +54,7 @@ export async function signedUrl(bucket: Bucket, objectPath: string, expiresInSec
 }
 
 export function publicUrl(bucket: Bucket, objectPath: string): string {
-  if (useSupabase()) return supabaseAdmin().storage.from(bucket).getPublicUrl(objectPath).data.publicUrl;
+  if (supabaseStorageOn()) return supabaseAdmin().storage.from(bucket).getPublicUrl(objectPath).data.publicUrl;
   return `/api/files/${bucket}/${objectPath}`;
 }
 

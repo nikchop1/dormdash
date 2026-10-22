@@ -61,7 +61,9 @@ export function PayPalCheckout({
   const orderId = useRef<string | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
   const latest = useRef({ getBody, onPlaced, onError });
-  latest.current = { getBody, onPlaced, onError };
+  useEffect(() => {
+    latest.current = { getBody, onPlaced, onError };
+  });
 
   useEffect(() => {
     let buttons: PayPalButtons | null = null;

@@ -6,20 +6,20 @@ import { useEffect, useState } from "react";
 export function Countdown({ to, since }: { to?: string; since?: string }) {
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => {
-    setNow(Date.now());
-    const t = setInterval(() => setNow(Date.now()), 15000);
-    return () => clearInterval(t);
+    const tick = () => setNow(Date.now());
+    const first = setTimeout(tick, 0);
+    const t = setInterval(tick, 15000);
+    return () => {
+      clearTimeout(first);
+      clearInterval(t);
+    };
   }, []);
-  // Render a stable value on the server, then tick on the client.
-  const n = now ?? new Date(to ?? since ?? Date.now()).getTime() - (to ? 5 * 60000 : -60000);
+  // Before the clock starts (server render), show a neutral, deterministic value.
+  if (now === null) return <span className="tnum">{since ? "a few min" : "soon"}</span>;
   if (since) {
-    const mins = Math.max(1, Math.round((n - new Date(since).getTime()) / 60000));
-    return <span className="tnum" suppressHydrationWarning>{mins} min</span>;
+    const mins = Math.max(1, Math.round((now - new Date(since).getTime()) / 60000));
+    return <span className="tnum">{mins} min</span>;
   }
-  const mins = Math.round((new Date(to!).getTime() - n) / 60000);
-  return (
-    <span className="tnum" suppressHydrationWarning>
-      {mins > 1 ? `in ${mins} min` : mins >= -1 ? "any minute now" : `${-mins} min past ETA`}
-    </span>
-  );
+  const mins = Math.round((new Date(to!).getTime() - now) / 60000);
+  return <span className="tnum">{mins > 1 ? `in ${mins} min` : mins >= -1 ? "any minute now" : `${-mins} min past ETA`}</span>;
 }

@@ -46,7 +46,7 @@ export function OrderForm({
   const [slot, setSlot] = useState(slots[0]?.iso ?? "");
   const [tipChoice, setTipChoice] = useState<number | "custom">(tipPresets.includes(100) ? 100 : tipPresets[0] ?? 0);
   const [customTip, setCustomTip] = useState("");
-  const [quote, setQuote] = useState<Quote | null>(null);
+  const [fetchedQuote, setQuote] = useState<Quote | null>(null);
   const [quoteError, setQuoteError] = useState<string>();
   const [fields, setFields] = useState<Record<string, string>>({});
   const [sheet, setSheet] = useState(false);
@@ -55,13 +55,11 @@ export function OrderForm({
   const building = buildings.find((b) => b.id === v.buildingId);
   const tipCents = tipChoice === "custom" ? Math.round((parseFloat(customTip) || 0) * 100) : tipChoice;
   const floorNum = Number(v.floor);
+  const quote = v.buildingId && floorNum >= 1 ? fetchedQuote : null;
 
   // Live, server-computed quote.
   useEffect(() => {
-    if (!v.buildingId || !floorNum || floorNum < 1) {
-      setQuote(null);
-      return;
-    }
+    if (!v.buildingId || !floorNum || floorNum < 1) return;
     const ctrl = new AbortController();
     const t = setTimeout(async () => {
       try {

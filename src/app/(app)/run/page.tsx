@@ -6,7 +6,7 @@ import { paymentsMode } from "@/lib/env";
 import { haversineMiles } from "@/lib/domain/geo";
 import { STATUS_LABEL } from "@/lib/domain/orders";
 import { suggestBatches } from "@/lib/domain/runners";
-import { fmtTime } from "@/lib/domain/time";
+import { fmtTime, nowMs } from "@/lib/domain/time";
 import { latestApplication, myShifts, earningsSummary } from "@/lib/services/runners";
 import { openJobs, runnerActiveJobs } from "@/lib/services/orders";
 import { getCurrentSurge, getPricing } from "@/lib/settings";
@@ -84,7 +84,7 @@ export default async function RunPage() {
     getCurrentSurge(),
   ]);
   const jobs = p.on_shift ? await openJobs() : [];
-  const now = Date.now();
+  const now = nowMs();
   const toBoard = (j: (typeof jobs)[number]): BoardJob => ({
     id: j.id,
     spotName: j.spot_name,

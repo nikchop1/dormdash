@@ -11,7 +11,7 @@ import { getPricing } from "@/lib/settings";
 import { avatarUrl } from "@/lib/storage";
 import { cancellationTerms, STATUS_STEPS } from "@/lib/domain/orders";
 import { formatCents } from "@/lib/domain/pricing";
-import { fmtDateTime } from "@/lib/domain/time";
+import { fmtDateTime, nowMs } from "@/lib/domain/time";
 import { OrderStatusHero } from "@/components/order-status";
 import { KeyValue, Notice, PageHeader, SectionTitle } from "@/components/ui/misc";
 import { OrderActions, PinCard, OrderLive } from "./order-actions";
@@ -53,8 +53,9 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
     if (s === "requested") return events.find((e) => e.type === "paid")?.created_at ?? null;
     return [...events].reverse().find((e) => e.to_status === s)?.created_at ?? null;
   };
-  const waitedMin = (Date.now() - o.created_at.getTime()) / 60000;
-  const canReport = o.status === "delivered" && !dispute && o.delivered_at && Date.now() - o.delivered_at.getTime() < 72 * 3600000;
+  const now = nowMs();
+  const waitedMin = (now - o.created_at.getTime()) / 60000;
+  const canReport = o.status === "delivered" && !dispute && o.delivered_at && now - o.delivered_at.getTime() < 72 * 3600000;
 
   return (
     <div className="mx-auto max-w-2xl px-4 md:px-6">

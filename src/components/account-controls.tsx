@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -17,6 +17,7 @@ export function LogoutButton({ className, compact }: { className?: string; compa
     try {
       await api("/api/auth/logout", { method: "POST" });
       // Hard navigation so no cached signed-in UI survives.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.assign("/");
     } catch {
       toast("Couldn't log out. Check your connection.", "error");
@@ -43,18 +44,26 @@ export function LogoutButton({ className, compact }: { className?: string; compa
 
 type Theme = "system" | "light" | "dark";
 
+const themeListeners = new Set<() => void>();
+function readTheme(): Theme {
+  try {
+    const t = localStorage.getItem("fd-theme");
+    return t === "light" || t === "dark" ? t : "system";
+  } catch {
+    return "system";
+  }
+}
+
 export function ThemeSwitcher() {
-  const [theme, setTheme] = useState<Theme>("system");
-  useEffect(() => {
-    try {
-      const t = localStorage.getItem("fd-theme");
-      if (t === "light" || t === "dark") setTheme(t);
-    } catch {
-      /* storage blocked */
-    }
-  }, []);
+  const theme = useSyncExternalStore(
+    (cb) => {
+      themeListeners.add(cb);
+      return () => themeListeners.delete(cb);
+    },
+    readTheme,
+    () => "system" as Theme,
+  );
   function choose(t: Theme) {
-    setTheme(t);
     try {
       if (t === "system") localStorage.removeItem("fd-theme");
       else localStorage.setItem("fd-theme", t);
@@ -63,6 +72,7 @@ export function ThemeSwitcher() {
     }
     if (t === "system") delete document.documentElement.dataset.theme;
     else document.documentElement.dataset.theme = t;
+    themeListeners.forEach((l) => l());
   }
   return (
     <Segmented
