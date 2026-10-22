@@ -3,6 +3,9 @@ import { LegalHeader, Review, Section } from "@/components/legal";
 import { getPricing } from "@/lib/settings";
 import { formatCents } from "@/lib/domain/pricing";
 
+// Reads live data (settings / database), so never prerender at build time.
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = { title: "Runner Agreement" };
 
 export default async function RunnerAgreementPage() {

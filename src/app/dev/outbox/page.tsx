@@ -3,6 +3,9 @@ import { devToolsEnabled, firstLink, outbox } from "@/lib/dev";
 import { fmtDateTime } from "@/lib/domain/time";
 import { EmptyState, PageHeader } from "@/components/ui/misc";
 
+// Reads live data (settings / database), so never prerender at build time.
+export const dynamic = "force-dynamic";
+
 export const metadata = { title: "Dev outbox" };
 
 export default async function OutboxPage() {

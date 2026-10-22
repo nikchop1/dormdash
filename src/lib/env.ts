@@ -12,7 +12,8 @@ const isProd = process.env.NODE_ENV === "production";
 
 export const env = {
   isProd,
-  siteUrl: (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, ""),
+  // SITE_URL (runtime) wins over NEXT_PUBLIC_SITE_URL (inlined at build time).
+  siteUrl: (process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, ""),
   supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || "",
   supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
   supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "",

@@ -6,6 +6,9 @@ import { flag } from "@/lib/settings";
 import { Notice } from "@/components/ui/misc";
 import { SignupForm } from "./signup-form";
 
+// Reads live data (settings / database), so never prerender at build time.
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = { title: "Sign up" };
 
 export default async function SignupPage() {
