@@ -6,14 +6,6 @@ const nextConfig: NextConfig = {
   cacheComponents: false,
   devIndicators: false,
   serverExternalPackages: ["@electric-sql/pglite", "postgres", "web-push"],
-  turbopack: {
-    rules: {
-      "*.css": {
-        loaders: ["@tailwindcss/turbopack"],
-        as: "*.css",
-      },
-    },
-  },
   images: { remotePatterns: [{ protocol: "https", hostname: "*.supabase.co" }] },
   async headers() {
     return [
