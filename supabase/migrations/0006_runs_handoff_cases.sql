@@ -102,6 +102,12 @@ create table public.blocked_identities (
 );
 
 -- ---------- cases (replace disputes) ----------
+-- Existing disputes become cases with the same id, so photos.dispute_id (renamed to
+-- case_id below) still points at a real row and photos_case_id_fkey can be added.
+create temp table legacy_disputes as
+  select id, order_id, customer_id, runner_id, reason::text as reason, description, status::text as status,
+    runner_response, runner_responded_at, resolution_note, resolved_by, resolved_at, created_at
+  from public.disputes;
 alter table public.photos drop constraint if exists photos_dispute_id_fkey;
 drop table public.disputes;
 drop type public.dispute_status;
@@ -143,6 +149,15 @@ create table public.cases (
 );
 create index cases_queue_idx on public.cases (status, priority, created_at);
 create trigger cases_touch before update on public.cases for each row execute function public.touch_updated_at();
+insert into public.cases (id, order_id, type, priority, status, customer_id, runner_id, opened_by, reason, description,
+    runner_response, runner_responded_at, outcome_note, resolved_by, resolved_at, created_at)
+  select id, order_id, 'customer_claim', 3,
+    (case status when 'resolved' then 'resolved' when 'runner_responded' then 'under_review' else 'open' end)::public.case_status,
+    customer_id, runner_id, customer_id, reason, description, runner_response, runner_responded_at, resolution_note, resolved_by, resolved_at, created_at
+  from legacy_disputes;
+drop table legacy_disputes;
+-- Anything still dangling (shouldn't happen) is detached rather than blocking the migration.
+update public.photos set case_id = null where case_id is not null and not exists (select 1 from public.cases c where c.id = case_id);
 alter table public.photos add constraint photos_case_id_fkey foreign key (case_id) references public.cases(id) on delete cascade;
 
 -- Per-party threads: customers and runners each talk only to Dormdash admins.

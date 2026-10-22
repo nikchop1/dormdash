@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Big_Shoulders, IBM_Plex_Sans } from "next/font/google";
 import { ToastProvider } from "@/components/ui/toast";
 import { ServiceWorker } from "@/components/service-worker";
+import { ThemeScript } from "@/components/theme-script";
 import "./globals.css";
 
 const display = Big_Shoulders({
@@ -40,14 +41,12 @@ export const viewport: Viewport = {
   ],
 };
 
-// Applies the saved theme before paint so there's no flash.
-const themeScript = `try{var t=localStorage.getItem('fd-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}`;
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${display.variable} ${text.variable}`} suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        {/* Applies the saved theme before paint so there's no flash. */}
+        <ThemeScript />
       </head>
       <body className="min-h-dvh antialiased">
         <ToastProvider>{children}</ToastProvider>

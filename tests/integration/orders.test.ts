@@ -562,3 +562,68 @@ describe("photos and cron security", () => {
     expect(yes.status).toBe(200);
   });
 });
+
+describe("evidence photos link to real rows", () => {
+  /** Upload through the live-camera routes, like the app does. */
+  async function camera(kind: "pickup" | "door" | "problem" | "case", orderId: string) {
+    const t = await call<{ token: string }>(cameraToken, { body: { kind } });
+    const fd = new FormData();
+    fd.append("file", new File([tinyJpeg() as BlobPart], "c.jpg", { type: "image/jpeg" }));
+    fd.append("meta", JSON.stringify({ kind, token: t.body.token, orderId, location: { status: "ok", lat: 40.7339, lng: -73.9962 } }));
+    const r = await call<{ id: string }>(cameraUpload, { form: fd });
+    expect(r.status).toBe(200);
+    return r.body.id;
+  }
+  const photoRow = async (id: string) =>
+    (await db.query<{ order_id: string | null; case_id: string | null }>("select order_id, case_id from public.photos where id = $1", [id]))[0];
+  const caseExists = async (id: string) => (await db.query("select 1 from public.cases where id = $1", [id])).length === 1;
+
+  it("pickup and door photos attach to the order with no case", async () => {
+    const id = (await place("cust@nyu.edu", u.cust)).body.orderId;
+    await loginAs("maya", "maya@nyu.edu");
+    await call(claimRoute, { body: { orderIds: [id] } });
+    const pickup = await camera("pickup", id);
+    expect((await call(jobAction, { body: { photoId: pickup }, params: { id, action: "pickup" } })).status).toBe(200);
+    expect(await photoRow(pickup)).toEqual({ order_id: id, case_id: null });
+    const door = await camera("door", id);
+    expect((await call(jobAction, { body: { photoId: door }, params: { id, action: "at-door" } })).status).toBe(200);
+    expect(await photoRow(door)).toEqual({ order_id: id, case_id: null });
+    u.photoOrder = id;
+  });
+
+  it("a runner problem photo links to the case it opened", async () => {
+    const id = (await place("cust@nyu.edu", u.cust, { foodValueCents: 500 })).body.orderId;
+    await loginAs("maya", "maya@nyu.edu");
+    expect((await call(claimRoute, { body: { orderIds: [id] } })).status).toBe(200);
+    const p = await camera("problem", id);
+    const r = await call<{ caseId: string }>(jobAction, { body: { reason: "spilled_damaged", note: "Dropped it.", photoId: p }, params: { id, action: "problem" } });
+    expect(r.status).toBe(200);
+    const row = await photoRow(p);
+    expect(row.case_id).toBe(r.body.caseId);
+    expect(await caseExists(row.case_id!)).toBe(true);
+  });
+
+  it("a customer's case photo links to the case it opened", async () => {
+    const id = u.photoOrder;
+    await loginAs("maya", "maya@nyu.edu");
+    await call(jobAction, { body: { pin: await pinOf(id) }, params: { id, action: "deliver" } });
+    await loginAs("cust", "cust@nyu.edu");
+    const p = await camera("case", id);
+    const r = await call<{ caseId: string }>(customerCaseRoute, { body: { type: "customer_claim", reason: "wrong_items", description: "Not my order.", photoId: p }, params: { id } });
+    expect(r.status).toBe(200);
+    const row = await photoRow(p);
+    expect(row.case_id).toBe(r.body.caseId);
+    expect(await caseExists(row.case_id!)).toBe(true);
+    // The case evidence shows up with the order's photos.
+    const [{ n }] = await db.query<{ n: number }>("select count(*)::int as n from public.photos ph join public.cases c on c.id = ph.case_id where c.order_id = $1", [id]);
+    expect(n).toBe(1);
+    u.casePhoto = p;
+  });
+
+  it("a photo can't be reused for a second case", async () => {
+    const id = u.photoOrder;
+    const again = await call<{ error: { code: string } }>(customerCaseRoute, { body: { type: "pin_no_food", description: "x", photoId: u.casePhoto }, params: { id } });
+    expect(again.status).toBe(400);
+    expect(again.body.error.code).toBe("photo_used");
+  });
+});
