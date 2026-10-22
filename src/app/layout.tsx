@@ -10,6 +10,7 @@ const display = Big_Shoulders({
   weight: "variable",
   axes: ["opsz"],
   display: "swap",
+  adjustFontFallback: false,
 });
 
 const text = IBM_Plex_Sans({

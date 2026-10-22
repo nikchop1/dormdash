@@ -205,7 +205,7 @@ export function Notice({
       {icon && <span className={cn("mt-0.5 shrink-0 [&>svg]:size-5", iconTone[tone])}>{icon}</span>}
       <div className="min-w-0 flex-1 text-small">
         {title && <p className="font-semibold">{title}</p>}
-        {children && <div className={cn(title && "mt-0.5", "text-ink-2")}>{children}</div>}
+        {children && <div className={cn(!!title && "mt-0.5", "text-ink-2")}>{children}</div>}
       </div>
       {action && <div className="shrink-0 self-center">{action}</div>}
     </div>

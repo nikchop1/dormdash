@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Bell, CircleUser, Footprints, House, Receipt, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { LogoMark } from "./brand";
+import { LogoutButton } from "./account-controls";
 
 const ITEMS = [
   { href: "/home", label: "Home", icon: House },
@@ -92,6 +93,9 @@ export function SideNav({ isAdmin, unread }: { isAdmin: boolean; unread: number 
           </Link>
         </li>
       </ul>
+      <div className="mt-auto border-t border-line pt-3">
+        <LogoutButton compact className="w-full" />
+      </div>
     </nav>
   );
 }

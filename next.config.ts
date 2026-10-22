@@ -4,6 +4,7 @@ const nextConfig: NextConfig = {
   // Every screen in FloorDrop is per-user and live, so we opt out of Cache Components
   // and render dynamically. See DECISIONS.md.
   cacheComponents: false,
+  devIndicators: false,
   serverExternalPackages: ["@electric-sql/pglite", "postgres", "web-push"],
   turbopack: {
     rules: {
