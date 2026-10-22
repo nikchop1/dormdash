@@ -1,5 +1,5 @@
 /**
- * Seed FloorDrop with demo data.
+ * Seed Dormdash with demo data.
  *
  *   npm run db:seed                 # full demo: places, users, shifts, orders
  *   npm run db:seed -- --places-only  # just buildings + pickup spots (safe for production)
@@ -19,7 +19,7 @@ import { fromNyWallClock, nyParts } from "@/lib/domain/time";
 import { putObject } from "@/lib/storage";
 import { bagPng, doorPng, idPng, receiptPng } from "./png";
 
-export const DEMO_PASSWORD = "FloorDrop123";
+export const DEMO_PASSWORD = "Dormdash123";
 
 const args = new Set(process.argv.slice(2));
 
@@ -37,7 +37,7 @@ const BUILDINGS = [
 ];
 
 // Placeholder spots around Washington Square Park. Names are generic on purpose:
-// FloorDrop has no partnerships, so real names and exact coordinates must be
+// Dormdash has no partnerships, so real names and exact coordinates must be
 // verified by an admin before launch.
 const SPOTS: { name: string; address: string; lat: number; lng: number; type: "restaurant" | "cafe" | "convenience" | "dining_hall"; notes: string }[] = [
   { name: "University Place Coffee", address: "University Pl near E 9th St", lat: 40.7327, lng: -73.9946, type: "cafe", notes: "Pickup shelf to the left of the register." },

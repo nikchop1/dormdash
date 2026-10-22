@@ -41,7 +41,7 @@ function ForgotForm() {
     return (
       <div className="flex flex-col gap-5">
         <Notice tone="success" icon={<MailCheck />} title="Check your inbox">
-          If {email} has a FloorDrop account, a reset link is on its way. It works once and expires in an hour.
+          If {email} has a Dormdash account, a reset link is on its way. It works once and expires in an hour.
         </Notice>
         <p className="text-small text-ink-2">
           Nothing after a few minutes? Check spam, or{" "}

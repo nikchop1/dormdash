@@ -22,7 +22,7 @@ export default async function VerifyEmailPage() {
       </p>
       <ol className="mt-8 divide-y divide-line border-y border-line text-small">
         <li className="flex gap-4 py-3"><span className="tnum font-display text-heading font-black">01</span><span className="pt-0.5 text-ink-2">Open your NYU inbox (Gmail, since NYU uses Google).</span></li>
-        <li className="flex gap-4 py-3"><span className="tnum font-display text-heading font-black">02</span><span className="pt-0.5 text-ink-2">Find &ldquo;Confirm your FloorDrop email&rdquo;. Check spam if it&rsquo;s hiding.</span></li>
+        <li className="flex gap-4 py-3"><span className="tnum font-display text-heading font-black">02</span><span className="pt-0.5 text-ink-2">Find &ldquo;Confirm your Dormdash email&rdquo;. Check spam if it&rsquo;s hiding.</span></li>
         <li className="flex gap-4 py-3"><span className="tnum font-display text-heading font-black">03</span><span className="pt-0.5 text-ink-2">Tap <span className="font-semibold text-ink">Confirm email</span>. You can order and apply to run after that.</span></li>
       </ol>
       <div className="mt-8 flex flex-col gap-3">

@@ -20,7 +20,7 @@ export const env = {
   databaseUrl: process.env.DATABASE_URL || "",
   pgliteDir: process.env.PGLITE_DIR || ".data/pglite",
   storageDir: process.env.LOCAL_STORAGE_DIR || ".data/storage",
-  appSecret: process.env.APP_SECRET || (isProd && process.env.VERCEL ? "" : "floordrop-local-dev-secret-change-me"),
+  appSecret: process.env.APP_SECRET || (isProd && process.env.VERCEL ? "" : "dormdash-local-dev-secret-change-me"),
   allowedEmailDomains: list(process.env.ALLOWED_EMAIL_DOMAINS || "nyu.edu"),
   adminEmails: list(process.env.ADMIN_EMAILS),
   paymentsProvider: (process.env.PAYMENTS_PROVIDER || "demo") as "demo" | "paypal",
@@ -31,10 +31,10 @@ export const env = {
     webhookId: process.env.PAYPAL_WEBHOOK_ID || "",
   },
   resendApiKey: process.env.RESEND_API_KEY || "",
-  emailFrom: process.env.EMAIL_FROM || "FloorDrop <hello@floordrop.app>",
+  emailFrom: process.env.EMAIL_FROM || "Dormdash <hello@dormdash.app>",
   vapidPublicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "",
   vapidPrivateKey: process.env.VAPID_PRIVATE_KEY || "",
-  vapidSubject: process.env.VAPID_SUBJECT || "mailto:hello@floordrop.app",
+  vapidSubject: process.env.VAPID_SUBJECT || "mailto:hello@dormdash.app",
   cronSecret: process.env.CRON_SECRET || (isProd && process.env.VERCEL ? "" : "local-cron-secret"),
   devTools: process.env.DEV_TOOLS === "1",
 };
@@ -60,5 +60,5 @@ export function assertConfig() {
   if (authMode === "supabase" && dbMode === "pglite") {
     problems.push("Supabase auth is configured but DATABASE_URL is missing. Set DATABASE_URL to your Supabase Postgres connection string.");
   }
-  if (problems.length) throw new Error("FloorDrop config error:\n- " + problems.join("\n- "));
+  if (problems.length) throw new Error("Dormdash config error:\n- " + problems.join("\n- "));
 }

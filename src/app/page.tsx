@@ -206,7 +206,7 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
                   <tr><th scope="row" className="py-3 text-left font-normal text-ink-2">Tip</th><td className="py-3 text-right">your call, 100% to the runner</td></tr>
                 </tbody>
               </table>
-              <p className="mt-3 text-small text-ink-3">FloorDrop keeps {Math.round(s.platformFeePct * 100)}% of the delivery fee to run the platform. Never any of the tip.</p>
+              <p className="mt-3 text-small text-ink-3">Dormdash keeps {Math.round(s.platformFeePct * 100)}% of the delivery fee to run the platform. Never any of the tip.</p>
             </div>
           </div>
         </section>
@@ -234,7 +234,7 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
       </main>
 
       <footer className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-10 text-small text-ink-3 md:flex-row md:items-center md:justify-between md:px-8">
-        <p>FloorDrop is an independent student marketplace. Not affiliated with or endorsed by New York University.</p>
+        <p>Dormdash is an independent student marketplace. Not affiliated with or endorsed by New York University.</p>
         <nav aria-label="Legal" className="flex gap-4">
           <Link href="/legal/terms" className="hover:text-ink">Terms</Link>
           <Link href="/legal/privacy" className="hover:text-ink">Privacy</Link>

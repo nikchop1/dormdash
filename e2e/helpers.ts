@@ -1,7 +1,7 @@
 import { deflateSync } from "node:zlib";
 import { expect, type APIRequestContext, type Page } from "@playwright/test";
 
-export const DEMO_PASSWORD = "FloorDrop123";
+export const DEMO_PASSWORD = "Dormdash123";
 
 /** Log a browser context in via the real login API (sets the session cookie). */
 export async function apiLogin(page: Page, email: string, password = DEMO_PASSWORD) {

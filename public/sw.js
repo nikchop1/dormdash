@@ -1,4 +1,4 @@
-/* FloorDrop service worker: offline fallback + web push. Deliberately small:
+/* Dormdash service worker: offline fallback + web push. Deliberately small:
    app data is always live, so we only cache the shell assets and an offline page. */
 const VERSION = "fd-v1";
 const OFFLINE_URL = "/offline";
@@ -42,7 +42,7 @@ self.addEventListener("fetch", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-  let data = { title: "FloorDrop", body: "", url: "/home", tag: undefined };
+  let data = { title: "Dormdash", body: "", url: "/home", tag: undefined };
   try {
     data = { ...data, ...event.data.json() };
   } catch {

@@ -50,7 +50,7 @@ Everything below was decided without asking, per the brief. Each line says what 
 
 - **Storage buckets:** `avatars` (public), `id-photos` and `order-photos` (private, short-lived signed URLs). All uploads go through the server, which checks type by magic bytes (JPEG/PNG/WebP) and size (4 MB). Browsers downscale photos before upload to stay under Vercel's 4.5 MB body limit.
 - **Runner rating** is exposed to customers only as an aggregate through security-definer functions; individual ratings stay private.
-- **Placeholder seed data:** building names, addresses and coordinates are placeholders, and spot names are generic on purpose (FloorDrop has no restaurant partnerships). All spots are flagged "verify before launch".
+- **Placeholder seed data:** building names, addresses and coordinates are placeholders, and spot names are generic on purpose (Dormdash has no restaurant partnerships). All spots are flagged "verify before launch".
 - **"Not affiliated with NYU"** is stated in the footer and Terms. NYU violet isn't used anywhere.
 
 ## Background jobs

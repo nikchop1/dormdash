@@ -13,11 +13,20 @@ export function LogoMark({ className }: { className?: string }) {
   );
 }
 
+/** The Dormdash wordmark: DORM in ink, DASH in deep mustard. Condensed signage type, no swoosh. */
+export function Wordmark({ size = 26, className }: { size?: number; className?: string }) {
+  return (
+    <span className={cn("font-display leading-none font-black tracking-tight uppercase", className)} style={{ fontSize: size }}>
+      Dorm<span className="text-accent-ink">dash</span>
+    </span>
+  );
+}
+
 export function Logo({ className, href = "/" }: { className?: string; href?: string }) {
   return (
-    <Link href={href} className={cn("inline-flex items-center gap-2 rounded-xs", className)} aria-label="FloorDrop home">
+    <Link href={href} className={cn("inline-flex items-center gap-2 rounded-xs", className)} aria-label="Dormdash home">
       <LogoMark />
-      <span className="font-display text-[26px] leading-none font-black tracking-tight uppercase">FloorDrop</span>
+      <Wordmark />
     </Link>
   );
 }

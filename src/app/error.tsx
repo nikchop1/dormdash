@@ -12,7 +12,7 @@ export default function ErrorPage({ error, reset }: { error: Error & { digest?: 
       <p className="eyebrow">Something broke</p>
       <h1 className="mt-2 font-display text-display-lg leading-none font-black uppercase">Elevator&rsquo;s out</h1>
       <p className="mt-4 max-w-md text-body-lg text-ink-2">
-        That page hit an error on our end. Your orders and payments are safe. Try again, and if it keeps happening, email support@floordrop.app
+        That page hit an error on our end. Your orders and payments are safe. Try again, and if it keeps happening, email support@dormdash.app
         {error.digest ? <> with code <span className="tnum font-semibold text-ink">{error.digest}</span></> : null}.
       </p>
       <div className="mt-8 flex flex-wrap gap-3">

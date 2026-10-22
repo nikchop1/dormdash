@@ -18,10 +18,10 @@ export function layout(opts: { heading: string; body: string[]; cta?: { label: s
     : "";
   const html = `<!doctype html><html><body style="margin:0;background:${C.paper};font-family:'IBM Plex Sans',Helvetica,Arial,sans-serif">
 <div style="max-width:520px;margin:0 auto;padding:32px 24px">
-  <div style="font-weight:800;font-size:20px;letter-spacing:.02em;color:${C.ink};border-bottom:2px solid ${C.ink};padding-bottom:12px;margin-bottom:24px">FLOORDROP<span style="color:${C.ink2};font-weight:400"> · NYU</span></div>
+  <div style="font-weight:800;font-size:20px;letter-spacing:.02em;color:${C.ink};border-bottom:2px solid ${C.ink};padding-bottom:12px;margin-bottom:24px">DORMDASH<span style="color:${C.ink2};font-weight:400"> · NYU</span></div>
   <h1 style="margin:0 0 16px;font-size:26px;line-height:30px;color:${C.ink}">${esc(opts.heading)}</h1>
   ${paras}${cta}
-  <p style="margin:32px 0 0;padding-top:16px;border-top:1px solid ${C.line};font-size:12px;line-height:18px;color:${C.ink2}">${esc(opts.footnote ?? "You're getting this because you have a FloorDrop account. Questions? Just reply.")}</p>
+  <p style="margin:32px 0 0;padding-top:16px;border-top:1px solid ${C.line};font-size:12px;line-height:18px;color:${C.ink2}">${esc(opts.footnote ?? "You're getting this because you have a Dormdash account. Questions? Just reply.")}</p>
 </div></body></html>`;
   const text = [opts.heading, "", ...opts.body, ...(opts.cta ? ["", `${opts.cta.label}: ${opts.cta.url}`] : [])].join("\n");
   return { html, text };
@@ -29,16 +29,16 @@ export function layout(opts: { heading: string; body: string[]; cta?: { label: s
 
 export const templates = {
   verify: (url: string) => ({
-    subject: "Confirm your FloorDrop email",
+    subject: "Confirm your Dormdash email",
     ...layout({
       heading: "One tap and you're in.",
       body: ["Confirm this is your NYU email so you can start ordering (or running)."],
       cta: { label: "Confirm email", url },
-      footnote: "Didn't sign up for FloorDrop? Ignore this and nothing happens. The link expires in 24 hours.",
+      footnote: "Didn't sign up for Dormdash? Ignore this and nothing happens. The link expires in 24 hours.",
     }),
   }),
   reset: (url: string) => ({
-    subject: "Reset your FloorDrop password",
+    subject: "Reset your Dormdash password",
     ...layout({
       heading: "Forgot it? Happens.",
       body: ["Tap below to pick a new password. The link works once and expires in 1 hour."],
@@ -47,16 +47,16 @@ export const templates = {
     }),
   }),
   emailChange: (url: string, newEmail: string) => ({
-    subject: "Confirm your new FloorDrop email",
+    subject: "Confirm your new Dormdash email",
     ...layout({
       heading: "New email, who dis?",
-      body: [`Confirm ${newEmail} as the email on your FloorDrop account.`],
+      body: [`Confirm ${newEmail} as the email on your Dormdash account.`],
       cta: { label: "Confirm new email", url },
       footnote: "If you didn't request this, ignore it. Your email stays the same.",
     }),
   }),
   runnerDecision: (approved: boolean, note: string | null) => ({
-    subject: approved ? "You're a FloorDrop runner" : "About your FloorDrop runner application",
+    subject: approved ? "You're a Dormdash runner" : "About your Dormdash runner application",
     ...layout({
       heading: approved ? "You're in. Grab a shift." : "Not this time.",
       body: approved
@@ -70,7 +70,7 @@ export const templates = {
             ...(note ? [`Why: ${note}`] : []),
             "You can still order like normal. Reply to this email if you think we got it wrong.",
           ],
-      cta: { label: approved ? "Open the runner tab" : "Open FloorDrop", url: `${env.siteUrl}/run` },
+      cta: { label: approved ? "Open the runner tab" : "Open Dormdash", url: `${env.siteUrl}/run` },
     }),
   }),
   disputeOutcome: (opts: { code: string; outcome: string; note: string; forRunner: boolean }) => ({
@@ -89,7 +89,7 @@ export const templates = {
   }),
   notification: (title: string, body: string, url: string | null) => ({
     subject: title,
-    ...layout({ heading: title, body: [body], cta: url ? { label: "Open FloorDrop", url: env.siteUrl + url } : undefined }),
+    ...layout({ heading: title, body: [body], cta: url ? { label: "Open Dormdash", url: env.siteUrl + url } : undefined }),
   }),
 };
 

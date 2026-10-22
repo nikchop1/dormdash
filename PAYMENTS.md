@@ -1,15 +1,15 @@
 # Payments plan
 
-**Short version:** FloorDrop runs in **demo payments** mode out of the box (no money
+**Short version:** Dormdash runs in **demo payments** mode out of the box (no money
 moves, everything else works). To take real money you need a PayPal Business account
 and to paste **three values** into Vercel. Then flip one switch. Details below.
 
 ## What gets paid, by whom
 
-| Money | Who pays | Who gets it | Through FloorDrop? |
+| Money | Who pays | Who gets it | Through Dormdash? |
 |---|---|---|---|
-| The food | Customer | The restaurant, directly, in its own app/site/counter | **Never.** FloorDrop never touches food money. |
-| Delivery fee | Customer | 75% to the runner, 25% to FloorDrop (configurable in Admin > Pricing) | Yes |
+| The food | Customer | The restaurant, directly, in its own app/site/counter | **Never.** Dormdash never touches food money. |
+| Delivery fee | Customer | 75% to the runner, 25% to Dormdash (configurable in Admin > Pricing) | Yes |
 | Tip | Customer | 100% to the runner | Yes |
 | Cancellation fee ($0.50 default) | Customer, if they cancel after a runner claims | 100% to the runner | Yes (kept from the refund) |
 
@@ -29,7 +29,7 @@ You asked for the simplest setup. PayPal wins on that for this business:
 | Clawbacks after payout | Not possible once sent, so we **hold earnings 24h** and pay out daily | Transfer reversals possible |
 
 Stripe is the more "industrial" marketplace option (better KYC and tax tooling) if
-FloorDrop grows into a real company with many runners. The code keeps payments behind
+Dormdash grows into a real company with many runners. The code keeps payments behind
 one interface (`src/lib/payments/types.ts`), so adding a Stripe provider later is a
 contained change: implement `createCheckout`, `capture`, `refund`, `payout`,
 `verifyWebhook`.
@@ -59,7 +59,7 @@ contained change: implement `createCheckout`, `capture`, `refund`, `payout`,
 
 ## Go-live checklist (PayPal)
 
-1. **Business account:** sign up at paypal.com/business (or upgrade a personal account). Use the legal entity that will run FloorDrop.
+1. **Business account:** sign up at paypal.com/business (or upgrade a personal account). Use the legal entity that will run Dormdash.
 2. **App credentials:** developer.paypal.com > Apps & Credentials > *Create App* (type: Merchant). Toggle to **Sandbox** first. Copy:
    - Client ID → `NEXT_PUBLIC_PAYPAL_CLIENT_ID`
    - Secret → `PAYPAL_CLIENT_SECRET`
@@ -79,11 +79,11 @@ stays in demo mode instead of breaking, and the admin dashboard says so.
 
 Card/PayPal processing has a fixed per-transaction fee (roughly $0.30 to $0.49 plus a
 few percent in the US; check PayPal's current merchant fees). On a **$3.00** order
-that can eat most of FloorDrop's **$0.75** cut. Options, in order of impact:
+that can eat most of Dormdash's **$0.75** cut. Options, in order of impact:
 
 - Ask PayPal for **micropayments pricing** (lower fixed fee, built for transactions under ~$10).
 - Raise the base fee or the platform cut (Admin > Pricing).
-- Later: prepaid **FloorDrop credit** (load $10, spend it down) so one card fee covers many orders.
+- Later: prepaid **Dormdash credit** (load $10, spend it down) so one card fee covers many orders.
 
 Refunds don't return PayPal's fixed fee, so frequent cancellations also cost money.
 Watch "Platform revenue" vs "refunded" on the admin dashboard.
@@ -92,7 +92,7 @@ Watch "Platform revenue" vs "refunded" on the admin dashboard.
 
 - Runners are paid as independent platform users. PayPal reports payments to
   recipients on 1099-K above IRS thresholds. Talk to an accountant about whether
-  FloorDrop should also collect W-9s and issue 1099-NECs.
-- Money-transmission rules: FloorDrop collects for its own service (delivery) and pays
+  Dormdash should also collect W-9s and issue 1099-NECs.
+- Money-transmission rules: Dormdash collects for its own service (delivery) and pays
   runners from its own balance; it doesn't hold customer funds for third parties. Have
   a lawyer confirm this structure for New York.

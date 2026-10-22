@@ -265,7 +265,7 @@ export function OrderForm({
       <div className="safe-bottom fixed inset-x-0 bottom-16 z-30 border-t border-line bg-paper shadow-float md:bottom-0 md:left-56">
         <div className="mx-auto flex max-w-2xl items-center gap-4 px-4 py-3 md:px-6">
           <div className="flex-1">
-            <p className="text-caption text-ink-3">{quote?.surgeLabel ? `Busy pricing ${quote.surgeMultiplier}x · total` : "Total to FloorDrop"}</p>
+            <p className="text-caption text-ink-3">{quote?.surgeLabel ? `Busy pricing ${quote.surgeMultiplier}x · total` : "Total to Dormdash"}</p>
             {quote ? (
               <Money cents={quote.totalCents} className="font-display text-title font-extrabold" />
             ) : quoteError ? (

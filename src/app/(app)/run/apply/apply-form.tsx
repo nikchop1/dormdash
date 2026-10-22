@@ -47,7 +47,7 @@ export function ApplyForm({ legalName, homeBuildingId, buildings }: { legalName:
         <option value="">Pick a building</option>
         {buildings.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
       </Select>
-      <PhotoPicker kind="id_card" label="Photo of your NYU ID" hint="Front side. Only FloorDrop admins see it, and it's stored privately." error={fields.idPhotoId} onUploaded={setIdPhotoId} />
+      <PhotoPicker kind="id_card" label="Photo of your NYU ID" hint="Front side. Only Dormdash admins see it, and it's stored privately." error={fields.idPhotoId} onUploaded={setIdPhotoId} />
       <Checkbox
         checked={v.agree}
         onChange={(e) => setV({ ...v, agree: e.target.checked })}

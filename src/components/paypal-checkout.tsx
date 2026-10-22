@@ -43,7 +43,7 @@ function loadSdk(clientId: string): Promise<PayPalNamespace> {
 }
 
 /**
- * PayPal / Venmo buttons. createOrder makes the FloorDrop order (server prices it
+ * PayPal / Venmo buttons. createOrder makes the Dormdash order (server prices it
  * and creates the PayPal order); onApprove captures it server-side.
  */
 export function PayPalCheckout({

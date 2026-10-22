@@ -23,8 +23,8 @@ export default function PrivacyPage() {
         <ul>
           <li>Your runner sees your first name, building, floor, room, order notes, confirmation screenshot and phone number, only for orders they&rsquo;re delivering.</li>
           <li>Customers see their runner&rsquo;s first name, photo and rating.</li>
-          <li>Only FloorDrop admins see NYU ID photos. ID and order photos are stored privately and shown with short-lived links.</li>
-          <li>Service providers: Supabase (database, auth, storage), Vercel (hosting), PayPal (payments and payouts), Resend (email). They process data only to run FloorDrop.</li>
+          <li>Only Dormdash admins see NYU ID photos. ID and order photos are stored privately and shown with short-lived links.</li>
+          <li>Service providers: Supabase (database, auth, storage), Vercel (hosting), PayPal (payments and payouts), Resend (email). They process data only to run Dormdash.</li>
         </ul>
         <p>We don&rsquo;t sell your data.</p>
       </Section>
@@ -40,7 +40,7 @@ export default function PrivacyPage() {
         </ul>
       </Section>
       <Section title="Contact">
-        <p>privacy@floordrop.app</p>
+        <p>privacy@dormdash.app</p>
         <Review>Confirm applicability of FERPA (we are not NYU), NY SHIELD Act security requirements, and CCPA/other state laws for out-of-state students.</Review>
       </Section>
     </article>

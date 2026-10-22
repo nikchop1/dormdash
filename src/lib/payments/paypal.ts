@@ -61,8 +61,8 @@ export const paypalProvider: PaymentsProvider = {
             reference_id: orderId,
             custom_id: orderId,
             invoice_id: `FD-${code}`,
-            description: `FloorDrop delivery ${code}`,
-            soft_descriptor: "FLOORDROP",
+            description: `Dormdash delivery ${code}`,
+            soft_descriptor: "DORMDASH",
             amount: {
               currency_code: "USD",
               value: centsToValue(totalCents),
@@ -77,7 +77,7 @@ export const paypalProvider: PaymentsProvider = {
           },
         ],
         payment_source: {
-          paypal: { experience_context: { shipping_preference: "NO_SHIPPING", user_action: "PAY_NOW", brand_name: "FloorDrop" } },
+          paypal: { experience_context: { shipping_preference: "NO_SHIPPING", user_action: "PAY_NOW", brand_name: "Dormdash" } },
         },
       },
     });
@@ -126,15 +126,15 @@ export const paypalProvider: PaymentsProvider = {
       body: {
         sender_batch_header: {
           sender_batch_id: batchId,
-          email_subject: "You've got FloorDrop earnings",
-          email_message: "Thanks for running. Here's your FloorDrop payout.",
+          email_subject: "You've got Dormdash earnings",
+          email_message: "Thanks for running. Here's your Dormdash payout.",
         },
         items: items.map((i) => ({
           recipient_type: "EMAIL",
           receiver: i.receiver,
           amount: { currency: "USD", value: centsToValue(i.amountCents) },
           sender_item_id: i.payoutId,
-          note: "FloorDrop runner earnings",
+          note: "Dormdash runner earnings",
         })),
       },
     });

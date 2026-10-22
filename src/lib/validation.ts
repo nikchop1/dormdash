@@ -51,7 +51,7 @@ const emailBase = z.string().trim().toLowerCase().email("Enter a valid email add
 
 export const nyuEmail = (allowed: string[]) =>
   emailBase.refine((e) => emailDomainAllowed(e, allowed), {
-    message: `Use your ${allowed.map((d) => "@" + d).join(" or ")} email. FloorDrop is students only.`,
+    message: `Use your ${allowed.map((d) => "@" + d).join(" or ")} email. Dormdash is students only.`,
   });
 
 export const phoneSchema = z

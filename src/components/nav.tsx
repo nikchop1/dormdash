@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell, CircleUser, Footprints, House, Receipt, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { LogoMark } from "./brand";
+import { LogoMark, Wordmark } from "./brand";
 import { LogoutButton } from "./account-controls";
 
 const ITEMS = [
@@ -59,7 +59,7 @@ export function SideNav({ isAdmin, unread }: { isAdmin: boolean; unread: number 
     <nav aria-label="Main" className="sticky top-0 hidden h-dvh w-56 shrink-0 flex-col border-r border-line px-3 py-5 md:flex">
       <Link href="/home" className="mb-8 flex items-center gap-2 px-3">
         <LogoMark />
-        <span className="font-display text-[24px] leading-none font-black uppercase">FloorDrop</span>
+        <Wordmark size={24} />
       </Link>
       <ul className="flex flex-col gap-0.5">
         {items.map(({ href, label, icon: Icon }) => {
@@ -103,9 +103,9 @@ export function SideNav({ isAdmin, unread }: { isAdmin: boolean; unread: number 
 export function MobileTopBar({ unread }: { unread: number }) {
   return (
     <div className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-paper px-4 md:hidden">
-      <Link href="/home" className="flex items-center gap-2" aria-label="FloorDrop home">
+      <Link href="/home" className="flex items-center gap-2" aria-label="Dormdash home">
         <LogoMark className="size-6" />
-        <span className="font-display text-[22px] leading-none font-black uppercase">FloorDrop</span>
+        <Wordmark size={22} />
       </Link>
       <Link href="/notifications" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} className="relative -mr-2 inline-flex size-11 items-center justify-center rounded-sm hover:bg-sunken">
         <Bell className="size-5" strokeWidth={1.75} aria-hidden />

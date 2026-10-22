@@ -13,12 +13,12 @@ export default async function RunnerAgreementPage() {
   return (
     <article>
       <LegalHeader title="Runner Agreement" updated="October 22, 2026" />
-      <Section title="1. Your relationship with FloorDrop">
-        <p>As a runner you&rsquo;re an independent user of the FloorDrop platform, not an employee. You choose when to go on shift and which jobs to claim.</p>
+      <Section title="1. Your relationship with Dormdash">
+        <p>As a runner you&rsquo;re an independent user of the Dormdash platform, not an employee. You choose when to go on shift and which jobs to claim.</p>
         <Review>Confirm independent contractor classification under New York law and whether a separate contractor agreement is required.</Review>
       </Section>
       <Section title="2. Getting approved">
-        <p>You must be a current NYU student, give your legal name and a photo of your NYU ID, and be approved by a FloorDrop admin. We can decline or revoke approval.</p>
+        <p>You must be a current NYU student, give your legal name and a photo of your NYU ID, and be approved by a Dormdash admin. We can decline or revoke approval.</p>
       </Section>
       <Section title="3. Doing the job">
         <ul>

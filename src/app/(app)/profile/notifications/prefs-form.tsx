@@ -67,10 +67,10 @@ function PushToggle({ vapidKey }: { vapidKey: string | null }) {
   if (state === "unsupported")
     return (
       <Notice tone="info" title="Push isn't available here">
-        {vapidKey ? "On iPhone, add FloorDrop to your Home Screen first (Share, then Add to Home Screen), then turn push on from there." : "Push notifications aren't set up on this server yet. You'll still see updates in the app."}
+        {vapidKey ? "On iPhone, add Dormdash to your Home Screen first (Share, then Add to Home Screen), then turn push on from there." : "Push notifications aren't set up on this server yet. You'll still see updates in the app."}
       </Notice>
     );
-  if (state === "denied") return <Notice tone="warning" title="Push is blocked">Your browser blocked notifications for FloorDrop. Allow them in your browser&rsquo;s site settings, then come back.</Notice>;
+  if (state === "denied") return <Notice tone="warning" title="Push is blocked">Your browser blocked notifications for Dormdash. Allow them in your browser&rsquo;s site settings, then come back.</Notice>;
   return (
     <div className="flex items-center justify-between gap-4 py-2">
       <p className="text-small text-ink-2">{state === "on" ? "Push is on for this device." : "Get a buzz when your order moves, even with the app closed."}</p>

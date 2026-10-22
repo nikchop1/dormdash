@@ -1,6 +1,6 @@
-# FloorDrop design system
+# Dormdash design system
 
-This document is the source of truth for how FloorDrop looks, reads and moves. Every
+This document is the source of truth for how Dormdash looks, reads and moves. Every
 screen follows it. Tokens live in `src/app/globals.css` (CSS variables + Tailwind
 `@theme`); components in `src/components/ui` consume only those tokens.
 

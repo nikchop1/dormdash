@@ -21,12 +21,12 @@ const text = IBM_Plex_Sans({
 });
 
 export const metadata: Metadata = {
-  title: { default: "FloorDrop · NYU food, brought to your floor", template: "%s · FloorDrop" },
+  title: { default: "Dormdash · NYU food, brought to your floor", template: "%s · Dormdash" },
   description:
     "Order pickup from spots near your dorm. A verified NYU student grabs it and brings it up to your floor. Small fee, no awkward lobby wait.",
-  applicationName: "FloorDrop",
+  applicationName: "Dormdash",
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, title: "FloorDrop", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Dormdash", statusBarStyle: "default" },
   icons: { icon: "/icon.svg", apple: "/icons/apple-touch-icon.png" },
 };
 

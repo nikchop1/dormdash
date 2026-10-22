@@ -81,7 +81,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
         </List>
       </div>
       <p className="mt-6 text-caption text-ink-3">
-        FloorDrop · <a className="hover:text-ink" href="/legal/terms">Terms</a> · <a className="hover:text-ink" href="/legal/privacy">Privacy</a> · <a className="hover:text-ink" href="/legal/runner-agreement">Runner Agreement</a>
+        Dormdash · <a className="hover:text-ink" href="/legal/terms">Terms</a> · <a className="hover:text-ink" href="/legal/privacy">Privacy</a> · <a className="hover:text-ink" href="/legal/runner-agreement">Runner Agreement</a>
       </p>
     </div>
   );

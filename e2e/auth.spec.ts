@@ -63,7 +63,7 @@ test("password reset by email", async ({ page }) => {
   await page.getByLabel("NYU email").fill("customer4@nyu.edu");
   await page.getByRole("button", { name: "Send reset link" }).click();
   await expect(page.getByText("Check your inbox")).toBeVisible();
-  const link = await emailLink(page.request, "customer4@nyu.edu", /Reset your FloorDrop password/);
+  const link = await emailLink(page.request, "customer4@nyu.edu", /Reset your Dormdash password/);
   await page.goto(link);
   await expect(page).toHaveURL(/\/reset-password/);
   await page.getByLabel("New password", { exact: true }).fill("Brandnew2026");

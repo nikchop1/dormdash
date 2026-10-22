@@ -40,7 +40,7 @@ export const GET = route(async (req) => {
   return new Response(toCsv(rows) || "no data\n", {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="floordrop-${report}-${days}d-${date}.csv"`,
+      "Content-Disposition": `attachment; filename="dormdash-${report}-${days}d-${date}.csv"`,
     },
   });
 });

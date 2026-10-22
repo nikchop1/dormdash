@@ -28,7 +28,7 @@ test("customer and runner complete a delivery end to end", async ({ browser }) =
   await expect(customer).toHaveURL(/\/login/);
 
   // ---- verify (simulated inbox) ----
-  const link = await emailLink(customer.request, email, /Confirm your FloorDrop email/);
+  const link = await emailLink(customer.request, email, /Confirm your Dormdash email/);
   await customer.goto(link);
   await expect(customer).toHaveURL(/\/home\?welcome=1/);
   await expect(customer.getByText("You're verified. Welcome in.")).toBeVisible();

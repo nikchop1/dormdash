@@ -1,8 +1,8 @@
 <!doctype html><html><body style="margin:0;background:#F4EFE6;font-family:'IBM Plex Sans',Helvetica,Arial,sans-serif">
 <div style="max-width:520px;margin:0 auto;padding:32px 24px">
-  <div style="font-weight:800;font-size:20px;letter-spacing:.02em;color:#1B1A17;border-bottom:2px solid #1B1A17;padding-bottom:12px;margin-bottom:24px">FLOORDROP<span style="color:#57524A;font-weight:400"> · NYU</span></div>
+  <div style="font-weight:800;font-size:20px;letter-spacing:.02em;color:#1B1A17;border-bottom:2px solid #1B1A17;padding-bottom:12px;margin-bottom:24px">DORMDASH<span style="color:#57524A;font-weight:400"> · NYU</span></div>
   <h1 style="margin:0 0 16px;font-size:26px;line-height:30px;color:#1B1A17">New email, who dis?</h1>
-  <p style="margin:0 0 14px;font-size:16px;line-height:24px;color:#1B1A17">Confirm {{ .NewEmail }} as the email on your FloorDrop account.</p>
+  <p style="margin:0 0 14px;font-size:16px;line-height:24px;color:#1B1A17">Confirm {{ .NewEmail }} as the email on your Dormdash account.</p>
   <p style="margin:24px 0"><a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email_change" style="display:inline-block;background:#EFB21C;color:#1B1A17;font-weight:700;text-decoration:none;padding:12px 20px;border-radius:6px;font-size:16px">Confirm new email</a></p>
   <p style="margin:0 0 14px;font-size:13px;line-height:20px;color:#57524A">Button not working? Paste this into your browser:<br><span style="word-break:break-all">{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email_change</span></p>
   <p style="margin:32px 0 0;padding-top:16px;border-top:1px solid #D9D0C1;font-size:12px;line-height:18px;color:#57524A">If you didn't request this, ignore it. Your email stays the same.</p>

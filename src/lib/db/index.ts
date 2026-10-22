@@ -7,7 +7,7 @@ import type { Db, Queryable, Row } from "./types";
 export type { Db, Queryable, Row };
 
 declare global {
-  var __floordropDb: Promise<Db> | undefined;
+  var __dormdashDb: Promise<Db> | undefined;
 }
 
 const MIGRATIONS_DIR = path.join(process.cwd(), "supabase", "migrations");
@@ -49,18 +49,18 @@ async function open(): Promise<Db> {
 
 /** Privileged connection. Bypasses RLS: callers must check permissions themselves. */
 export function getDb(): Promise<Db> {
-  if (!globalThis.__floordropDb) {
-    globalThis.__floordropDb = open().catch((e) => {
-      globalThis.__floordropDb = undefined;
+  if (!globalThis.__dormdashDb) {
+    globalThis.__dormdashDb = open().catch((e) => {
+      globalThis.__dormdashDb = undefined;
       throw e;
     });
   }
-  return globalThis.__floordropDb;
+  return globalThis.__dormdashDb;
 }
 
 /** Test hook: point the app at a specific database instance. */
 export function setDbForTests(db: Db) {
-  globalThis.__floordropDb = Promise.resolve(db);
+  globalThis.__dormdashDb = Promise.resolve(db);
 }
 
 export async function q<T = Row>(text: string, params: unknown[] = []): Promise<T[]> {

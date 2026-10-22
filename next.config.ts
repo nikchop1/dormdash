@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Every screen in FloorDrop is per-user and live, so we opt out of Cache Components
+  // Every screen in Dormdash is per-user and live, so we opt out of Cache Components
   // and render dynamically. See DECISIONS.md.
   cacheComponents: false,
   devIndicators: false,

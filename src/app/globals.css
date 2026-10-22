@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* FloorDrop tokens. See DESIGN.md. Components use these via Tailwind classes
+/* Dormdash tokens. See DESIGN.md. Components use these via Tailwind classes
    (bg-paper, text-ink-2, border-line, bg-accent...). No hex values in components. */
 
 :root {

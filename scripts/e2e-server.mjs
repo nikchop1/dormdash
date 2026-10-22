@@ -1,4 +1,4 @@
-// Boots an isolated FloorDrop for Playwright: fresh local database + seed, a
+// Boots an isolated Dormdash for Playwright: fresh local database + seed, a
 // production build, then `next start`. Never touches your dev database (.data/pglite).
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, rmSync } from "node:fs";

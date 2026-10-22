@@ -46,7 +46,7 @@ export const POST = route(async (req) => {
     throw new ApiError(
       403,
       "suspended",
-      profile?.status === "suspended" ? "This account is suspended. Email support@floordrop.app if you think that's a mistake." : "This account no longer exists.",
+      profile?.status === "suspended" ? "This account is suspended. Email support@dormdash.app if you think that's a mistake." : "This account no longer exists.",
     );
   }
   await resetLimit(key);

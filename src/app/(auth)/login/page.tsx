@@ -4,7 +4,7 @@ import { LoginForm } from "./login-form";
 export const metadata: Metadata = { title: "Log in" };
 
 const ERRORS: Record<string, string> = {
-  suspended: "This account is suspended. Email support@floordrop.app if you think that's a mistake.",
+  suspended: "This account is suspended. Email support@dormdash.app if you think that's a mistake.",
   expired_link: "That link expired or was already used. Log in and we'll send a fresh one if you still need to verify.",
   bad_link: "That link looks broken. Try copying the whole thing from the email.",
 };

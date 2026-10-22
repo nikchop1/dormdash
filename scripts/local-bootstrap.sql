@@ -1,4 +1,4 @@
--- Local-only bootstrap. Recreates the small slice of Supabase that FloorDrop's
+-- Local-only bootstrap. Recreates the small slice of Supabase that Dormdash's
 -- migrations depend on (roles, auth.users, auth.uid()) so the exact same migrations
 -- and RLS policies run inside PGlite. Never run this against Supabase.
 do $$ begin

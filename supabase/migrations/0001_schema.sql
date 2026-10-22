@@ -1,4 +1,4 @@
--- FloorDrop schema. Runs on Supabase Postgres and on the local PGlite database
+-- Dormdash schema. Runs on Supabase Postgres and on the local PGlite database
 -- (the local bootstrap in scripts/local-bootstrap.sql stubs the auth schema first).
 -- Money is always integer cents. Times are timestamptz (displayed in America/New_York).
 

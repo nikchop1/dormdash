@@ -1,7 +1,7 @@
-# FloorDrop
+# Dormdash
 
 Food from spots near your NYU dorm, brought up to your floor by another student.
-Customers order pickup themselves (in the restaurant's own app) and pay FloorDrop
+Customers order pickup themselves (in the restaurant's own app) and pay Dormdash
 only a small delivery fee plus an optional tip. Verified NYU students ("runners")
 grab the bag and bring it upstairs.
 
@@ -35,7 +35,7 @@ Start over with a fresh database: `npm run db:reset`.
 
 ### Demo logins
 
-Every demo account uses the password **`FloorDrop123`**.
+Every demo account uses the password **`Dormdash123`**.
 
 | Role | Email | Notes |
 |---|---|---|
@@ -91,9 +91,9 @@ email. Budget about an hour, plus a few days for PayPal to approve Payouts.
    - Site URL: `https://YOUR-DOMAIN`
    - Redirect URLs: `https://YOUR-DOMAIN/**` (and your `*.vercel.app` preview URL if you use previews).
 6. **Email templates** (Authentication → Emails → Templates). Paste the HTML from `supabase/templates/`:
-   - *Confirm signup* ← `confirm-signup.html` (subject: "Confirm your FloorDrop email")
-   - *Reset password* ← `reset-password.html` (subject: "Reset your FloorDrop password")
-   - *Change email address* ← `change-email.html` (subject: "Confirm your new FloorDrop email")
+   - *Confirm signup* ← `confirm-signup.html` (subject: "Confirm your Dormdash email")
+   - *Reset password* ← `reset-password.html` (subject: "Reset your Dormdash password")
+   - *Change email address* ← `change-email.html` (subject: "Confirm your new Dormdash email")
 
    These links go to `/auth/confirm?token_hash=…`, which is what the app expects. The default Supabase templates **won't work**.
 7. **SMTP:** Supabase's built-in email is rate-limited (a few per hour) and meant for testing. Before real users, set custom SMTP (Authentication → Emails → SMTP), e.g. with Resend (`smtp.resend.com`, user `resend`, password = your Resend API key).
@@ -140,7 +140,7 @@ labeled demo-payments mode.
 ### 5. Email for app notifications (optional but recommended)
 
 Create a [Resend](https://resend.com) account, verify your domain, set `RESEND_API_KEY` and
-`EMAIL_FROM` (e.g. `FloorDrop <hello@yourdomain.com>`). Without it, runner-approval and
+`EMAIL_FROM` (e.g. `Dormdash <hello@yourdomain.com>`). Without it, runner-approval and
 dispute-outcome emails are only logged (in-app and push notifications still work).
 
 ### 6. Domain

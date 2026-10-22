@@ -47,7 +47,7 @@ export function SignupForm({ buildings, domains }: { buildings: B[]; domains: st
     const f: Record<string, string> = {};
     if (v.fullName.trim().length < 2) f.fullName = "Enter your full name.";
     if (!/^\S+@\S+\.\S+$/.test(v.email)) f.email = "Enter a valid email address.";
-    else if (!emailDomainAllowed(v.email, domains)) f.email = `Use your ${domains.map((d) => "@" + d).join(" or ")} email. FloorDrop is students only.`;
+    else if (!emailDomainAllowed(v.email, domains)) f.email = `Use your ${domains.map((d) => "@" + d).join(" or ")} email. Dormdash is students only.`;
     if (!normalizeUsPhone(v.phone)) f.phone = "Enter a 10-digit US phone number, like (212) 555-0142.";
     const pw = checkPassword(v.password);
     if (!pw.ok) f.password = `Password needs: ${pw.problems.join(", ").toLowerCase()}.`;
