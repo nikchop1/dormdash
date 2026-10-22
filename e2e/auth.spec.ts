@@ -46,7 +46,7 @@ test("role protection: customers can't reach admin or runner pages", async ({ pa
   await expect(page.getByText("That page is admins only")).toBeVisible();
   await page.goto("/run/shifts");
   await expect(page).toHaveURL(/\/run$/);
-  await expect(page.getByRole("heading", { name: "Get paid to take the elevator" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Get paid on your way home" })).toBeVisible();
   const api = await page.request.get("/api/admin/export?report=summary");
   expect(api.status()).toBe(403);
 });

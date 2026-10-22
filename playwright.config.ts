@@ -15,6 +15,8 @@ export default defineConfig({
     ...devices["Desktop Chrome"],
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
+    // Evidence photos come from the live camera: Chromium's fake camera stands in for it.
+    launchOptions: { args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"] },
   },
   webServer: {
     command: "node scripts/e2e-server.mjs",
