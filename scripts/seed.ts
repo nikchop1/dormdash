@@ -127,16 +127,17 @@ async function main() {
         password: DEMO_PASSWORD,
         metadata: { full_name: p.name, phone: p.phone, building_id: bIds[p.building], floor: String(p.floor), room: p.room, terms_accepted: "true" },
       }));
+    // Runners get a demo Stripe Connect account with payouts enabled (the demo provider simulates Connect).
     await db.query(
       `update public.profiles set is_admin = $2, runner_status = $3, runner_home_building_id = $4, on_shift = $5,
-         on_shift_since = case when $5 then now() - interval '40 minutes' end, payout_email = $6 where id = $1`,
+         on_shift_since = case when $5 then now() - interval '40 minutes' end, stripe_account_id = $6, payouts_enabled = $6::text is not null where id = $1`,
       [
         uid[p.key],
         p.role === "admin",
         p.role === "runner" ? "approved" : p.role === "pending" ? "pending" : "none",
         p.home ? bIds[p.home] : null,
         !!p.onShift,
-        p.role === "runner" ? p.email.replace("@nyu.edu", "@example.com") : null,
+        p.role === "runner" ? `acct_demo_${p.key}` : null,
       ],
     );
   }
@@ -147,9 +148,12 @@ async function main() {
     await putObject("id-photos", path, idPng(), "image/png");
     await db.query("insert into public.photos (kind, bucket, path, uploaded_by) values ('id_card', 'id-photos', $1, $2)", [path, uid[p.key]]);
     await db.query(
-      `insert into public.runner_applications (user_id, legal_name, home_building_id, id_photo_path, agreement_accepted_at, status, reviewed_by, reviewed_at, created_at)
-       values ($1, $2, $3, $4, now() - interval '20 days', $5, $6, $7, now() - interval '21 days')`,
-      [uid[p.key], p.name, bIds[p.home ?? p.building], path, p.role === "runner" ? "approved" : "pending", p.role === "runner" ? uid.admin : null, p.role === "runner" ? new Date(Date.now() - 20 * 864e5).toISOString() : null],
+      `insert into public.runner_applications (user_id, legal_name, nyu_id_number, home_building_id, id_photo_path, agreement_accepted_at, status, reviewed_by, reviewed_at, created_at)
+       values ($1, $2, $3, $4, $5, now() - interval '20 days', $6, $7, $8, now() - interval '21 days')`,
+      [
+        uid[p.key], p.name, `N${10000000 + PEOPLE.indexOf(p) * 1234567}`.slice(0, 9), bIds[p.home ?? p.building], path,
+        p.role === "runner" ? "approved" : "pending", p.role === "runner" ? uid.admin : null, p.role === "runner" ? new Date(Date.now() - 20 * 864e5).toISOString() : null,
+      ],
     );
   }
   await db.query("update public.runner_applications set created_at = now() - interval '2 hours' where user_id = $1", [uid.pending]);
@@ -189,15 +193,38 @@ async function main() {
     return s;
   };
 
-  const savePhoto = async (orderId: string, kind: "confirmation" | "pickup" | "dropoff" | "dispute", by: string, at: Date) => {
+  // Evidence photos are stamped like the live camera would: captured time + one-time location result.
+  const savePhoto = async (orderId: string | null, kind: "confirmation" | "pickup" | "door", by: string, at: Date) => {
     const bytes = kind === "confirmation" ? receiptPng() : kind === "pickup" ? bagPng() : doorPng();
     const path = `${by}/${kind}/${randomUUID()}.png`;
     await putObject("order-photos", path, bytes, "image/png");
+    const evidence = kind !== "confirmation";
     const [r] = await db.query<{ id: string }>(
-      "insert into public.photos (order_id, kind, bucket, path, uploaded_by, created_at) values ($1, $2, 'order-photos', $3, $4, $5) returning id",
-      [kind === "dispute" ? null : orderId, kind, path, by, at.toISOString()],
+      `insert into public.photos (order_id, kind, bucket, path, uploaded_by, via_camera, captured_at, location_status, distance_m, created_at)
+       values ($1, $2, 'order-photos', $3, $4, $5, $6, $7, $8, $6) returning id`,
+      [orderId, kind, path, by, evidence, at.toISOString(), evidence ? "in_range" : null, evidence ? Math.round(6 + rand() * 30) : null],
     );
     return r.id;
+  };
+
+  /** Insert a row from a plain object (keeps long column lists readable). */
+  const insert = async (table: string, row: Record<string, unknown>) => {
+    const cols = Object.keys(row);
+    const [r] = await db.query<{ id: string }>(
+      `insert into public.${table} (${cols.join(", ")}) values (${cols.map((_, i) => `$${i + 1}`).join(", ")}) returning id`,
+      cols.map((c) => (row[c] instanceof Date ? (row[c] as Date).toISOString() : row[c])),
+    );
+    return r.id;
+  };
+
+  // Orders by the same runner within 25 minutes share a run.
+  const lastRun: Record<string, { id: string; at: number }> = {};
+  const runFor = async (runnerKey: string, at: Date, buildingId: string, closed: boolean) => {
+    const prev = lastRun[runnerKey];
+    if (prev && Math.abs(at.getTime() - prev.at) < 25 * 60000) return prev.id;
+    const id = await insert("runs", { runner_id: uid[runnerKey], building_id: buildingId, heading_home: rand() < 0.4, created_at: at, closed_at: closed ? new Date(at.getTime() + 30 * 60000) : null });
+    lastRun[runnerKey] = { id, at: at.getTime() };
+    return id;
   };
 
   type Spec = {
@@ -210,6 +237,7 @@ async function main() {
     rating?: number;
     cancelledAfterClaim?: boolean;
     spotIdx?: number;
+    foodCents?: number;
   };
 
   const create = async (s: Spec) => {
@@ -219,80 +247,144 @@ async function main() {
     const sp = s.spotIdx !== undefined ? eligible[s.spotIdx % eligible.length] : pick(eligible);
     const dist = roundMiles(haversineMiles(sp, b));
     const surge = activeSurge(s.createdAt, windows, DEFAULT_PRICING);
-    const q = quoteDelivery({ distanceMiles: dist, floor: s.customer.floor, tipCents: s.tip, surge, settings: DEFAULT_PRICING });
-    if (isQuoteError(q)) return null;
     const runner = s.runner ?? (s.status === "requested" || s.status === "pending_payment" ? undefined : pick(runnersFor(s.customer.building)));
+    const assigned = runner && !(s.status === "cancelled" && !s.cancelledAfterClaim) ? runner : undefined;
+    const handoff = assigned ? (assigned.home === s.customer.building ? "door" : "lobby") : null;
+    const foodValueCents = s.foodCents ?? 800 + Math.round(rand() * 38) * 100;
+    const bags = rand() < 0.1 ? 2 : 1;
+    // Lobby handoffs had the floor add-on refunded at claim; the seed simply never charges it.
+    const q = quoteDelivery({ distanceMiles: dist, floor: s.customer.floor, tipCents: s.tip, surge, settings: DEFAULT_PRICING, foodValueCents, bags, lobby: handoff === "lobby" });
+    if (isQuoteError(q)) return null;
     const t0 = s.createdAt.getTime();
-    const claimedAt = runner ? new Date(t0 + (2 + rand() * 6) * 60000) : null;
+    const claimedAt = assigned ? new Date(t0 + (2 + rand() * 6) * 60000) : null;
     const mins = estimateMinutes(dist, s.customer.floor);
     const eta = claimedAt ? new Date(claimedAt.getTime() + mins * 60000) : null;
-    const pickedUp = claimedAt && ["picked_up", "on_the_way", "delivered"].includes(s.status) ? new Date(claimedAt.getTime() + (mins * 0.45) * 60000) : null;
+    const pickedUp = claimedAt && ["picked_up", "on_the_way", "delivered"].includes(s.status) ? new Date(claimedAt.getTime() + mins * 0.45 * 60000) : null;
     const onWay = pickedUp && ["on_the_way", "delivered"].includes(s.status) ? new Date(pickedUp.getTime() + 60000) : null;
-    const delivered = s.status === "delivered" && eta ? new Date(eta.getTime() + ((s.lateBy ?? -(2 + rand() * 5)) * 60000)) : null;
+    const delivered = s.status === "delivered" && eta ? new Date(eta.getTime() + (s.lateBy ?? -(2 + rand() * 5)) * 60000) : null;
+    const atDoor = delivered ? new Date(delivered.getTime() - (20 + rand() * 60) * 1000) : null;
     const lateRefund = delivered && eta && (delivered.getTime() - eta.getTime()) / 60000 > DEFAULT_PRICING.lateGraceMinutes;
     const cancelled = s.status === "cancelled" ? new Date(t0 + (s.cancelledAfterClaim ? 9 : 4) * 60000) : null;
-    const handoff = runner ? (runner.home === s.customer.building ? "door" : "lobby") : null;
     const capture = s.status === "pending_payment" ? null : `democap_seed${codeN}`;
-    const refunded = lateRefund ? q.deliveryFeeCents : s.status === "cancelled" ? q.totalCents - (s.cancelledAfterClaim ? DEFAULT_PRICING.cancelFeeCents : 0) : 0;
-    const [o] = await db.query<{ id: string; code: string }>(
-      `insert into public.orders (code, customer_id, runner_id, spot_id, building_id, floor, room, pickup_name, order_number, status, handoff,
-         distance_miles, base_fee_cents, distance_fee_cents, floor_fee_cents, surge_multiplier, surge_fee_cents, delivery_fee_cents, tip_cents, total_cents,
-         platform_fee_cents, runner_fee_cents, payment_provider, payment_ref, capture_ref, payment_status, refunded_cents,
-         eta, claimed_at, picked_up_at, on_the_way_at, delivered_at, cancelled_at, cancelled_by, cancel_reason, delivered_via, late_refunded_at, created_at, updated_at)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,'demo',$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$37)
-       returning id, code`,
-      [
-        code(), uid[s.customer.key], s.status === "cancelled" && !s.cancelledAfterClaim ? null : runner ? uid[runner.key] : null, sp.id, bId,
-        s.customer.floor, s.customer.room, s.customer.name.split(" ")[0] + " " + s.customer.name.split(" ")[1][0], String(1000 + Math.floor(rand() * 9000)),
-        s.status, s.status === "cancelled" && !s.cancelledAfterClaim ? null : handoff,
-        dist, q.baseFeeCents, q.distanceFeeCents, q.floorFeeCents, q.surgeMultiplier, q.surgeFeeCents, q.deliveryFeeCents, q.tipCents, q.totalCents,
-        q.platformFeeCents, q.runnerFeeCents, `demo_seed${codeN}`, capture,
-        s.status === "pending_payment" ? "pending" : refunded >= q.totalCents ? "refunded" : refunded > 0 ? "partially_refunded" : "succeeded",
-        refunded,
-        eta?.toISOString() ?? null, claimedAt && (s.status !== "cancelled" || s.cancelledAfterClaim) ? claimedAt.toISOString() : null,
-        pickedUp?.toISOString() ?? null, onWay?.toISOString() ?? null, delivered?.toISOString() ?? null,
-        cancelled?.toISOString() ?? null, cancelled ? "customer" : null, cancelled ? (s.cancelledAfterClaim ? "Changed my mind" : "Ordered from the dining hall instead") : null,
-        delivered ? (rand() < 0.85 ? "pin" : "photo") : null, lateRefund ? delivered!.toISOString() : null, s.createdAt.toISOString(),
-      ],
-    );
+    const refunded = lateRefund ? q.deliveryFeeCents : s.status === "cancelled" ? q.chargeCents - (s.cancelledAfterClaim ? DEFAULT_PRICING.cancelFeeCents : 0) : 0;
+    const runId = assigned ? await runFor(assigned.key, claimedAt!, bId, !["claimed", "picked_up", "on_the_way"].includes(s.status)) : null;
+
+    const orderCode = code();
+    const id = await insert("orders", {
+      code: orderCode,
+      customer_id: uid[s.customer.key],
+      runner_id: assigned ? uid[assigned.key] : null,
+      run_id: runId,
+      spot_id: sp.id,
+      building_id: bId,
+      floor: s.customer.floor,
+      room: s.customer.room,
+      pickup_name: s.customer.name.split(" ")[0] + " " + s.customer.name.split(" ")[1][0],
+      order_number: String(1000 + Math.floor(rand() * 9000)),
+      status: s.status,
+      handoff,
+      distance_miles: dist,
+      base_fee_cents: q.baseFeeCents,
+      distance_fee_cents: q.distanceFeeCents,
+      floor_fee_cents: q.floorFeeCents,
+      size_fee_cents: q.sizeFeeCents,
+      bag_fee_cents: q.bagFeeCents,
+      bags,
+      surge_multiplier: q.surgeMultiplier,
+      surge_fee_cents: q.surgeFeeCents,
+      delivery_fee_cents: q.deliveryFeeCents,
+      tip_cents: q.tipCents,
+      guarantee_cents: q.guaranteeCents,
+      total_cents: q.totalCents,
+      credit_applied_cents: 0,
+      charged_cents: q.chargeCents,
+      food_value_cents: foodValueCents,
+      platform_fee_cents: q.platformFeeCents,
+      runner_fee_cents: q.runnerFeeCents,
+      payment_provider: "demo",
+      payment_ref: `demo_seed${codeN}`,
+      capture_ref: capture,
+      payment_status: s.status === "pending_payment" ? "pending" : refunded >= q.chargeCents ? "refunded" : refunded > 0 ? "partially_refunded" : "succeeded",
+      refunded_cents: refunded,
+      eta,
+      claimed_at: assigned ? claimedAt : null,
+      picked_up_at: pickedUp,
+      on_the_way_at: onWay,
+      heads_up_at: onWay,
+      at_door_at: atDoor,
+      door_location: atDoor ? "in_range" : null,
+      door_distance_m: atDoor ? Math.round(5 + rand() * 25) : null,
+      pin_entered_at: delivered,
+      delivered_at: delivered,
+      delivered_via: delivered ? "pin" : null,
+      cancelled_at: cancelled,
+      cancelled_by: cancelled ? "customer" : null,
+      cancel_reason: cancelled ? (s.cancelledAfterClaim ? "Changed my mind" : "Ordered from the dining hall instead") : null,
+      late_refunded_at: lateRefund ? delivered : null,
+      created_at: s.createdAt,
+      updated_at: s.createdAt,
+    });
+    const o = { id, code: orderCode };
     await db.query("insert into public.order_secrets (order_id, pin) values ($1, $2)", [o.id, String(Math.floor(rand() * 10000)).padStart(4, "0")]);
     const at = (d: Date | null) => (d ?? s.createdAt).toISOString();
     const ev = async (type: string, from: string | null, to: string | null, when: Date | null, actor: string | null = null, data: object = {}) =>
       db.query("insert into public.order_events (order_id, actor_id, type, from_status, to_status, data, created_at) values ($1,$2,$3,$4,$5,$6::jsonb,$7)", [o.id, actor, type, from, to, JSON.stringify(data), at(when)]);
+    const ledger = (kind: string, amount: number, memo: string, when: Date, userId: string | null = null, ref: string | null = null) =>
+      db.query("insert into public.ledger (order_id, user_id, kind, amount_cents, provider, provider_ref, memo, created_at) values ($1,$2,$3,$4,'demo',$5,$6,$7)", [o.id, userId, kind, amount, ref, memo, when.toISOString()]);
+
     await savePhoto(o.id, "confirmation", uid[s.customer.key], s.createdAt);
     await ev("created", null, "pending_payment", s.createdAt, uid[s.customer.key]);
     if (s.status === "pending_payment") return o;
     await ev("paid", "pending_payment", "requested", s.createdAt);
-    await db.query("insert into public.ledger (order_id, user_id, kind, amount_cents, provider, provider_ref, memo, created_at) values ($1,$2,'charge',$3,'demo',$4,$5,$6)", [o.id, uid[s.customer.key], q.totalCents, capture, `Delivery fee + tip, order ${o.code}`, s.createdAt.toISOString()]);
-    if (claimedAt && runner && (s.status !== "cancelled" || s.cancelledAfterClaim)) await ev("claimed", "requested", "claimed", claimedAt, uid[runner.key], { eta: eta!.toISOString(), handoff });
-    if (pickedUp && runner) {
-      await savePhoto(o.id, "pickup", uid[runner.key], pickedUp);
-      await ev("picked_up", "claimed", "picked_up", pickedUp, uid[runner.key]);
+    await ledger("charge", q.chargeCents, `Delivery fee, tip and guarantee, order ${o.code}`, s.createdAt, uid[s.customer.key], capture);
+    if (s.status !== "cancelled") await ledger("guarantee_in", q.guaranteeCents, `Delivery guarantee, order ${o.code}`, s.createdAt);
+    if (claimedAt && assigned) await ev("claimed", "requested", "claimed", claimedAt, uid[assigned.key], { eta: eta!.toISOString(), handoff, runId });
+    if (pickedUp && assigned) {
+      await savePhoto(o.id, "pickup", uid[assigned.key], pickedUp);
+      await ev("picked_up", "claimed", "picked_up", pickedUp, uid[assigned.key]);
     }
-    if (onWay && runner) await ev("on_the_way", "picked_up", "on_the_way", onWay, uid[runner.key]);
-    if (delivered && runner) {
-      await ev("pin_ok", null, null, delivered, uid[runner.key]);
-      await ev("delivered", "on_the_way", "delivered", delivered, uid[runner.key], { via: "pin" });
-      const hold = new Date(delivered.getTime() + DEFAULT_PRICING.payoutHoldHours * 3600000).toISOString();
-      if (lateRefund) {
-        await db.query("insert into public.ledger (order_id, user_id, kind, amount_cents, provider, memo, created_at) values ($1,$2,'refund',$3,'demo',$4,$5)", [o.id, uid[s.customer.key], -q.deliveryFeeCents, `Late delivery refund, order ${o.code}`, delivered.toISOString()]);
-        await ev("late_refund", null, null, delivered, null, { minutesLate: s.lateBy, refund: q.deliveryFeeCents });
-        await db.query("insert into public.strikes (runner_id, reason, order_id, note, created_at) values ($1, 'late', $2, $3, $4)", [uid[runner.key], o.id, `${s.lateBy} min past ETA`, delivered.toISOString()]);
-      } else {
-        await db.query("insert into public.runner_earnings (runner_id, order_id, kind, amount_cents, available_at, created_at) values ($1,$2,'delivery_fee',$3,$4,$5)", [uid[runner.key], o.id, q.runnerFeeCents, hold, delivered.toISOString()]);
-        await db.query("insert into public.ledger (order_id, kind, amount_cents, provider, memo, created_at) values ($1,'platform_fee',$2,'demo',$3,$4)", [o.id, q.platformFeeCents, `Platform fee, order ${o.code}`, delivered.toISOString()]);
+    if (onWay && assigned) {
+      await ev("on_the_way", "picked_up", "on_the_way", onWay, uid[assigned.key]);
+      await ev("heads_up", null, null, onWay, uid[assigned.key]);
+    }
+    if (delivered && assigned && atDoor) {
+      const door = await savePhoto(o.id, "door", uid[assigned.key], atDoor);
+      await db.query("update public.orders set door_photo_id = $2, countdown_ends_at = $3 where id = $1", [o.id, door, new Date(atDoor.getTime() + DEFAULT_PRICING.doorCountdownSeconds * 1000).toISOString()]);
+      await ev("at_door", null, null, atDoor, uid[assigned.key], { location: "in_range" });
+      await ev("pin_ok", null, null, delivered, uid[assigned.key]);
+      await ev("delivered", "on_the_way", "delivered", delivered, uid[assigned.key], { via: "pin" });
+      // Paid the moment the PIN is entered: one transfer per delivery, no hold.
+      const earned = (lateRefund ? 0 : q.runnerFeeCents) + q.tipCents;
+      let payoutId: string | null = null;
+      if (earned > 0) {
+        payoutId = await insert("payouts", { runner_id: uid[assigned.key], amount_cents: earned, status: "paid", provider: "demo", provider_ref: `tr_demo_${codeN}`, receiver: `acct_demo_${assigned.key}`, created_at: delivered, paid_at: delivered });
+        await ledger("payout", -earned, "Runner payout", delivered, uid[assigned.key], `tr_demo_${codeN}`);
       }
-      if (q.tipCents > 0) await db.query("insert into public.runner_earnings (runner_id, order_id, kind, amount_cents, available_at, created_at) values ($1,$2,'tip',$3,$4,$5)", [uid[runner.key], o.id, q.tipCents, hold, delivered.toISOString()]);
+      const line = (kind: string, amount: number) =>
+        db.query("insert into public.runner_earnings (runner_id, order_id, kind, amount_cents, available_at, payout_id, created_at) values ($1,$2,$3,$4,$5,$6,$5)", [uid[assigned.key], o.id, kind, amount, delivered.toISOString(), payoutId]);
+      if (lateRefund) {
+        await ledger("refund", -q.deliveryFeeCents, `Late delivery refund, order ${o.code}`, delivered, uid[s.customer.key]);
+        await ev("late_refund", null, null, delivered, null, { minutesLate: s.lateBy, refund: q.deliveryFeeCents });
+        await db.query("insert into public.strikes (runner_id, reason, order_id, note, created_at) values ($1, 'late', $2, $3, $4)", [uid[assigned.key], o.id, `${s.lateBy} min past ETA`, delivered.toISOString()]);
+      } else {
+        await line("delivery_fee", q.runnerFeeCents);
+        await ledger("platform_fee", q.platformFeeCents, `Platform fee, order ${o.code}`, delivered);
+      }
+      if (q.tipCents > 0) await line("tip", q.tipCents);
       if (s.rating) {
-        const comments = ["", "", "Fast and friendly.", "Came right up to my door, thanks!", "Bag was perfect.", "A little slow but all good.", ""];
-        await db.query("insert into public.ratings (order_id, customer_id, runner_id, stars, comment, created_at) values ($1,$2,$3,$4,$5,$6)", [o.id, uid[s.customer.key], uid[runner.key], s.rating, pick(comments), delivered.toISOString()]);
+        const comments = ["", "", "Fast and friendly.", "Right on time with the PIN, thanks!", "Bag was perfect.", "A little slow but all good.", ""];
+        await db.query("insert into public.ratings (order_id, customer_id, runner_id, stars, comment, created_at) values ($1,$2,$3,$4,$5,$6)", [o.id, uid[s.customer.key], uid[assigned.key], s.rating, pick(comments), delivered.toISOString()]);
       }
     }
     if (cancelled) {
       await ev("cancelled", s.cancelledAfterClaim ? "claimed" : "requested", "cancelled", cancelled, uid[s.customer.key], { by: "customer" });
-      await db.query("insert into public.ledger (order_id, user_id, kind, amount_cents, provider, memo, created_at) values ($1,$2,'refund',$3,'demo',$4,$5)", [o.id, uid[s.customer.key], -refunded, `Cancelled, order ${o.code}`, cancelled.toISOString()]);
-      if (s.cancelledAfterClaim && runner) {
-        await db.query("insert into public.runner_earnings (runner_id, order_id, kind, amount_cents, available_at, memo, created_at) values ($1,$2,'cancellation_fee',$3,$4,'Customer cancelled after claim',$5)", [uid[runner.key], o.id, DEFAULT_PRICING.cancelFeeCents, cancelled.toISOString(), cancelled.toISOString()]);
+      await ledger("refund", -refunded, `Cancelled, order ${o.code}`, cancelled, uid[s.customer.key]);
+      if (s.cancelledAfterClaim && assigned) {
+        const pid = await insert("payouts", { runner_id: uid[assigned.key], amount_cents: DEFAULT_PRICING.cancelFeeCents, status: "paid", provider: "demo", provider_ref: `tr_demo_c${codeN}`, receiver: `acct_demo_${assigned.key}`, created_at: cancelled, paid_at: cancelled });
+        await db.query(
+          "insert into public.runner_earnings (runner_id, order_id, kind, amount_cents, available_at, payout_id, memo, created_at) values ($1,$2,'cancellation_fee',$3,$4,$5,'Customer cancelled after claim',$4)",
+          [uid[assigned.key], o.id, DEFAULT_PRICING.cancelFeeCents, cancelled.toISOString(), pid],
+        );
       }
     }
     return o;
@@ -323,6 +415,7 @@ async function main() {
       history++;
     }
   }
+  await db.query("update public.runs set closed_at = coalesce(closed_at, created_at + interval '30 minutes')");
 
   // Older late strikes count as already reviewed by an admin: keep at most one active
   // per runner so seeded runners stay consistent with the 3-strike auto-suspension rule.
@@ -331,53 +424,61 @@ async function main() {
        select distinct on (runner_id) id from public.strikes order by runner_id, created_at desc)`,
   );
 
-  // Older payouts so earnings history isn't empty: pay out everything older than a week.
-  for (const k of ["r1", "r2", "r3", "r4"]) {
-    const [bal] = await db.query<{ amount: number }>(
-      "select coalesce(sum(amount_cents),0)::int as amount from public.runner_earnings where runner_id = $1 and created_at < now() - interval '7 days' and payout_id is null",
-      [uid[k]],
-    );
-    if (bal.amount > 0) {
-      const [po] = await db.query<{ id: string }>(
-        "insert into public.payouts (runner_id, amount_cents, status, provider, provider_ref, receiver, created_at, paid_at) values ($1,$2,'paid','demo','demo_seed_payout',$3, now() - interval '6 days', now() - interval '6 days') returning id",
-        [uid[k], bal.amount, PEOPLE.find((p) => p.key === k)!.email.replace("@nyu.edu", "@example.com")],
-      );
-      await db.query("update public.runner_earnings set payout_id = $1 where runner_id = $2 and created_at < now() - interval '7 days' and payout_id is null", [po.id, uid[k]]);
-    }
-  }
-
-  // Live orders: one in every status.
+  // Live orders: one in every status. Maya (r1) is mid-run with two Tower orders.
   const minsAgo = (m: number) => new Date(now.getTime() - m * 60000);
   const c = (k: string) => PEOPLE.find((p) => p.key === k)!;
   const r = (k: string) => PEOPLE.find((p) => p.key === k)!;
+  delete lastRun.r1;
   await create({ customer: c("c5"), status: "pending_payment", createdAt: minsAgo(2), tip: 100, spotIdx: 1 });
-  await create({ customer: c("c2"), status: "requested", createdAt: minsAgo(3), tip: 100, spotIdx: 0 });
-  await create({ customer: c("c4"), status: "requested", createdAt: minsAgo(6), tip: 50, spotIdx: 0 });
-  await create({ customer: c("c6"), status: "requested", createdAt: minsAgo(24), tip: 0, spotIdx: 3 });
-  await create({ customer: c("c3"), status: "requested", createdAt: minsAgo(4), tip: 200, spotIdx: 2 });
-  await create({ customer: c("c1"), runner: r("r1"), status: "on_the_way", createdAt: minsAgo(14), tip: 200, spotIdx: 2 });
-  await create({ customer: c("c3"), runner: r("r3"), status: "claimed", createdAt: minsAgo(5), tip: 100, spotIdx: 1 });
-  await create({ customer: c("c2"), runner: r("r1"), status: "picked_up", createdAt: minsAgo(10), tip: 50, spotIdx: 4 });
-  const recent = await create({ customer: c("c1"), runner: r("r2"), status: "delivered", createdAt: minsAgo(26 * 60), tip: 100, rating: undefined, spotIdx: 5 });
+  await create({ customer: c("c2"), status: "requested", createdAt: minsAgo(3), tip: 100, spotIdx: 0, foodCents: 1450 });
+  await create({ customer: c("c4"), status: "requested", createdAt: minsAgo(6), tip: 50, spotIdx: 0, foodCents: 1890 });
+  await create({ customer: c("c6"), status: "requested", createdAt: minsAgo(24), tip: 0, spotIdx: 3, foodCents: 2240 });
+  await create({ customer: c("c3"), status: "requested", createdAt: minsAgo(4), tip: 200, spotIdx: 2, foodCents: 1275 });
+  await create({ customer: c("c2"), runner: r("r1"), status: "picked_up", createdAt: minsAgo(14), tip: 50, spotIdx: 2, foodCents: 1625 });
+  await create({ customer: c("c1"), runner: r("r1"), status: "on_the_way", createdAt: minsAgo(13), tip: 200, spotIdx: 2, foodCents: 2150 });
+  await create({ customer: c("c3"), runner: r("r3"), status: "claimed", createdAt: minsAgo(5), tip: 100, spotIdx: 1, foodCents: 980 });
+  delete lastRun.r2;
+  const recent = await create({ customer: c("c1"), runner: r("r2"), status: "delivered", createdAt: minsAgo(3 * 60), tip: 100, spotIdx: 5, foodCents: 1740 });
+  delete lastRun.r4;
+  const older = await create({ customer: c("c3"), runner: r("r4"), status: "delivered", createdAt: minsAgo(30 * 60), tip: 0, spotIdx: 3, foodCents: 1320 });
   await create({ customer: c("c5"), status: "cancelled", createdAt: minsAgo(5 * 60), tip: 0 });
 
-  // One open dispute, on Jordan's recent delivered order.
+  // Cases: an open top-priority "gave my PIN, no food" and an auto-rejected theft claim.
   if (recent) {
-    const [o] = await db.query<{ runner_id: string }>("select runner_id from public.orders where id = $1", [recent.id]);
-    const [d] = await db.query<{ id: string }>(
-      "insert into public.disputes (order_id, customer_id, runner_id, reason, description, created_at) values ($1,$2,$3,'wrong_items',$4, now() - interval '3 hours') returning id",
-      [recent.id, uid.c1, o.runner_id, "Got someone else's bag. Mine had a chicken over rice with extra white sauce, this one had a veggie wrap. Name on the bag was different."],
-    );
-    const pid = await savePhoto(recent.id, "dispute", uid.c1, minsAgo(180));
-    await db.query("update public.photos set dispute_id = $1 where id = $2", [d.id, pid]);
-    await db.query("insert into public.order_events (order_id, actor_id, type, data, created_at) values ($1,$2,'dispute_opened',$3::jsonb, now() - interval '3 hours')", [recent.id, uid.c1, JSON.stringify({ reason: "wrong_items" })]);
+    const [o] = await db.query<{ runner_id: string; pin_entered_at: Date }>("select runner_id, pin_entered_at from public.orders where id = $1", [recent.id]);
+    const opened = new Date(new Date(o.pin_entered_at).getTime() + 2 * 60000);
+    const caseId = await insert("cases", {
+      order_id: recent.id, type: "pin_no_food", priority: 1, status: "open", customer_id: uid.c1, runner_id: o.runner_id, opened_by: uid.c1,
+      reason: "pin_no_food", description: "I said my PIN at the door but the runner walked off with the bag. Someone else's name was on the receipt they showed me.",
+      response_due_at: new Date(opened.getTime() + DEFAULT_PRICING.caseResponseHours * 3600000), refund_due_at: new Date(opened.getTime() + DEFAULT_PRICING.refundTargetHours * 3600000), created_at: opened,
+    });
+    for (const [user, role, other] of [[uid.c1, "customer", o.runner_id], [o.runner_id, "runner", uid.c1]] as const) {
+      await insert("incidents", { user_id: user, role, type: "pin_no_food", order_id: recent.id, case_id: caseId, counterparty_id: other, pending: true, created_at: opened });
+    }
+    await insert("case_messages", { case_id: caseId, party: "customer", author_id: uid.admin, from_admin: true, body: "Thanks, we're looking at the door photo and PIN log now. Was anyone else in the hallway?", created_at: new Date(opened.getTime() + 20 * 60000) });
+    await db.query("insert into public.order_events (order_id, actor_id, type, data, created_at) values ($1,$2,'case_opened',$3::jsonb,$4)", [recent.id, uid.c1, JSON.stringify({ type: "pin_no_food", caseId }), opened.toISOString()]);
+  }
+  if (older) {
+    const [o] = await db.query<{ runner_id: string; delivered_at: Date }>("select runner_id, delivered_at from public.orders where id = $1", [older.id]);
+    const opened = new Date(new Date(o.delivered_at).getTime() + 3 * 3600000);
+    const caseId = await insert("cases", {
+      order_id: older.id, type: "customer_claim", priority: 3, status: "resolved", customer_id: uid.c3, runner_id: o.runner_id, opened_by: uid.c3,
+      reason: "never_received", description: "Never got my food.", auto_rejected: true, outcome: "rejected",
+      outcome_note: "This order was completed with your PIN, which is proof of handoff. Theft or never-received claims on PIN-completed orders are automatically rejected.",
+      refund_due_at: opened, resolved_at: opened, created_at: opened,
+    });
+    await insert("incidents", { user_id: uid.c3, role: "customer", type: "rejected_claim", order_id: older.id, case_id: caseId, counterparty_id: o.runner_id, created_at: opened });
   }
 
+  // Zoe has credit from an earlier lost order, so the credit toggle shows up.
+  await db.query("update public.profiles set credit_cents = 1250 where id = $1", [uid.c4]);
+  await db.query("insert into public.ledger (user_id, kind, amount_cents, provider, memo, created_at) values ($1, 'credit_issued', 1250, 'demo', 'Food value as Dormdash credit (lost order)', now() - interval '6 days')", [uid.c4]);
+
   // A few notifications so the bell isn't empty.
-  await db.query("insert into public.notifications (user_id, category, title, body, url, created_at) values ($1,'order_updates','Maya has your order','ETA in a few minutes. Keep your PIN handy for the handoff.','/orders', now() - interval '12 minutes')", [uid.c1]);
+  await db.query("insert into public.notifications (user_id, category, title, body, url, created_at) values ($1,'order_updates','Maya has your order','ETA in a few minutes. Be at your door with your PIN.','/orders', now() - interval '12 minutes')", [uid.c1]);
   await db.query("insert into public.notifications (user_id, category, title, body, url, created_at) values ($1,'account','New runner application','Leo Park applied to run.','/admin/runners', now() - interval '2 hours')", [uid.admin]);
 
-  console.log(`Seeded ${PEOPLE.length} users, ${history} historical orders, live orders in every status, 1 open dispute.`);
+  console.log(`Seeded ${PEOPLE.length} users, ${history} historical orders, live orders in every status, 2 cases.`);
   console.log(`Demo password for every account: ${DEMO_PASSWORD}`);
 }
 

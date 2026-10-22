@@ -88,6 +88,13 @@ describe("signup", () => {
     expect((r.body as { error: { message: string } }).error.message).toBe("An account with this email already exists. Log in instead?");
   });
 
+  it("blocks emails and phones banned after a confirmed theft", async () => {
+    await db.query("insert into public.blocked_identities (kind, value, reason) values ('email', 'banned@nyu.edu', 'Confirmed theft'), ('phone', '+12125550188', 'Confirmed theft')");
+    expect((await call(signup, { body: form({ email: "Banned@nyu.edu", phone: "2125550187" }) })).status).toBe(403);
+    expect((await call(signup, { body: form({ email: "fresh-banned@nyu.edu", phone: "2125550188" }) })).status).toBe(403);
+    await db.query("delete from public.blocked_identities");
+  });
+
   it("enforces unique phone numbers", async () => {
     const r = await call(signup, { body: form({ email: "different@nyu.edu" }) });
     expect(r.status).toBe(409);

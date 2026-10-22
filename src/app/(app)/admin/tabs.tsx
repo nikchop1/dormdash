@@ -7,12 +7,13 @@ import { cn } from "@/lib/cn";
 const TABS = [
   { href: "/admin", label: "Overview" },
   { href: "/admin/orders", label: "Orders" },
-  { href: "/admin/disputes", label: "Disputes" },
+  { href: "/admin/cases", label: "Cases" },
   { href: "/admin/runners", label: "Runners" },
   { href: "/admin/users", label: "Users" },
   { href: "/admin/places", label: "Places" },
   { href: "/admin/pricing", label: "Pricing" },
   { href: "/admin/flags", label: "Flags" },
+  { href: "/admin/law-enforcement", label: "Legal log" },
 ];
 
 export function AdminTabs() {

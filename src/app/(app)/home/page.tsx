@@ -4,6 +4,7 @@ import { ChevronRight, CloudRain, Moon, TriangleAlert } from "lucide-react";
 import { requireUser } from "@/lib/auth/session";
 import { q } from "@/lib/db";
 import { coverageStatus } from "@/lib/services/coverage";
+import { customerBlock } from "@/lib/services/orders";
 import { getBuilding, spotsForBuilding, SPOT_TYPE_LABEL } from "@/lib/services/places";
 import { getCurrentSurge, flag } from "@/lib/settings";
 import { formatMiles, walkMinutes } from "@/lib/domain/geo";
@@ -32,12 +33,18 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   ]);
   const spots = building ? await spotsForBuilding({ buildingId: building.id, floor: p.floor ?? 1, surge, diningHallsEnabled: diningOn }) : [];
   const firstName = p.full_name.split(" ")[0];
+  const block = customerBlock(p);
 
   return (
     <div className="mx-auto max-w-2xl px-4 md:px-6">
       {sp.error === "forbidden" && (
         <Notice tone="warning" className="mt-4" icon={<TriangleAlert />} title="That page is admins only">
           You were sent back here.
+        </Notice>
+      )}
+      {block && (
+        <Notice tone="warning" className="mt-4" icon={<TriangleAlert />} title="Ordering is paused">
+          {block}
         </Notice>
       )}
       <header className="pt-5 pb-5">

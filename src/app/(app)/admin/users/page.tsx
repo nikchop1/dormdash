@@ -9,13 +9,13 @@ import { EmptyState, Tag } from "@/components/ui/misc";
 
 export const metadata: Metadata = { title: "Admin · Users" };
 
-type U = { id: string; full_name: string; email: string | null; phone: string | null; is_admin: boolean; runner_status: string; status: string; created_at: Date; orders: number; strikes: number };
+type U = { id: string; full_name: string; email: string | null; phone: string | null; is_admin: boolean; runner_status: string; status: string; created_at: Date; flagged_at: Date | null; customer_review_required: boolean; orders: number; strikes: number };
 
 export default async function AdminUsers({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
   const term = sp.q?.trim();
   const users = await q<U>(
-    `select p.id, p.full_name, p.email, p.phone, p.is_admin, p.runner_status, p.status, p.created_at,
+    `select p.id, p.full_name, p.email, p.phone, p.is_admin, p.runner_status, p.status, p.created_at, p.flagged_at, p.customer_review_required,
        (select count(*)::int from public.orders o where o.customer_id = p.id and o.status <> 'pending_payment') as orders,
        (select count(*)::int from public.strikes s where s.runner_id = p.id and not s.voided) as strikes
      from public.profiles p
@@ -56,6 +56,9 @@ export default async function AdminUsers({ searchParams }: { searchParams: Promi
                       {u.is_admin && <Tag tone="accent">Admin</Tag>}
                       {u.runner_status !== "none" && <Tag tone={u.runner_status === "approved" ? "success" : u.runner_status === "suspended" ? "danger" : "neutral"}>Runner: {u.runner_status}</Tag>}
                       {u.status === "suspended" && <Tag tone="danger">Suspended</Tag>}
+                      {u.status === "banned" && <Tag tone="danger">Banned</Tag>}
+                      {u.flagged_at && <Tag tone="danger">Flagged</Tag>}
+                      {u.customer_review_required && <Tag tone="warning">Ordering paused</Tag>}
                       {u.strikes > 0 && <Tag tone="warning">{u.strikes} strikes</Tag>}
                     </span>
                   </td>

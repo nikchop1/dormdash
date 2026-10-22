@@ -6,15 +6,13 @@ import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
-import { PhotoPicker } from "@/components/photo-picker";
+import { LiveCamera, type CapturedPhoto } from "@/components/live-camera";
 import { api, ClientApiError } from "@/lib/client/api";
 
 const REASONS = [
-  { value: "late", label: "Way too late", hint: "Late orders already get the fee back automatically." },
-  { value: "missing", label: "Never got it", hint: "Marked delivered but nothing showed up." },
-  { value: "wrong_items", label: "Wrong or missing items", hint: "Photo required." },
-  { value: "stolen", label: "Bag was taken", hint: "Left at the door and gone." },
-  { value: "wrong_room", label: "Left at the wrong room", hint: "Photo required." },
+  { value: "wrong_items", label: "Wrong or missing items", hint: "We'll look at the receipt and the pickup photo." },
+  { value: "never_received", label: "Never received it", hint: "If you gave your PIN, that's proof of handoff and this is rejected." },
+  { value: "stolen", label: "It was stolen", hint: "Same: a PIN entry means the bag was handed to you." },
   { value: "other", label: "Something else", hint: "" },
 ] as const;
 
@@ -23,25 +21,24 @@ export function ReportForm({ orderId }: { orderId: string }) {
   const toast = useToast();
   const [reason, setReason] = useState<string>("");
   const [description, setDescription] = useState("");
-  const [photoId, setPhotoId] = useState<string | null>(null);
+  const [photo, setPhoto] = useState<CapturedPhoto | null>(null);
   const [fields, setFields] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
-  const needsPhoto = reason === "wrong_items" || reason === "wrong_room";
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const f: Record<string, string> = {};
     if (!reason) f.reason = "Pick what went wrong.";
     if (description.trim().length < 10) f.description = "Tell us a bit more (10+ characters).";
-    if (needsPhoto && !photoId) f.photo = "Add a photo so we can see what happened.";
     setFields(f);
     if (Object.keys(f).length) return;
     setBusy(true);
     try {
-      await api(`/api/orders/${orderId}/dispute`, { body: { reason, description, photoId } });
-      toast("Report sent. We'll get back to you.");
-      router.push(`/orders/${orderId}`);
-      router.refresh();
+      const res = await api<{ caseId: string; autoRejected: boolean }>(`/api/orders/${orderId}/cases`, {
+        body: { type: "customer_claim", reason, description, photoId: photo?.id ?? null },
+      });
+      toast(res.autoRejected ? "This order was completed with your PIN, so the claim was rejected." : "Report sent. A real person will look at it.", res.autoRejected ? "error" : "success");
+      router.push(`/cases/${res.caseId}`);
     } catch (err) {
       const e2 = err as ClientApiError;
       toast(e2.message, "error");
@@ -74,22 +71,10 @@ export function ReportForm({ orderId }: { orderId: string }) {
         </div>
         {fields.reason && <p role="alert" className="mt-1.5 text-small text-danger">{fields.reason}</p>}
       </fieldset>
-      <Textarea
-        label="What happened?"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        error={fields.description}
-        rows={4}
-        maxLength={1000}
-        placeholder="Got a veggie wrap instead of chicken over rice. Different name on the bag."
-      />
-      <PhotoPicker kind="dispute" label={needsPhoto ? "Photo" : "Photo (optional, but it helps)"} error={fields.photo} onUploaded={setPhotoId} />
-      <p className="text-small text-ink-3">
-        We&rsquo;ll look at your photo, the runner&rsquo;s pickup and drop-off photos, and the PIN log. Refunds go back to your original payment.
-      </p>
-      <Button type="submit" size="lg" loading={busy} block>
-        Send report
-      </Button>
+      <Textarea label="What happened?" value={description} onChange={(e) => setDescription(e.target.value)} error={fields.description} rows={4} maxLength={1000} placeholder="Got a veggie wrap instead of chicken over rice." />
+      <LiveCamera kind="case" orderId={orderId} label="Photo (optional, live camera)" hint="Show what you got. Gallery photos aren't accepted." captured={photo} onCaptured={setPhoto} />
+      <p className="text-small text-ink-3">All case conversations go through the Dormdash team. You won&rsquo;t message the runner directly.</p>
+      <Button type="submit" size="lg" loading={busy} block>Send report</Button>
     </form>
   );
 }

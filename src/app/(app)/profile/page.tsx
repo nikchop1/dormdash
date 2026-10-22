@@ -5,6 +5,8 @@ import { getBuilding } from "@/lib/services/places";
 import { avatarUrl } from "@/lib/storage";
 import { formatPhone } from "@/lib/validation";
 import { LogoutButton, ThemeSwitcher } from "@/components/account-controls";
+import { formatCents } from "@/lib/domain/pricing";
+import { CreditToggle } from "./credit-toggle";
 import { Avatar, FloorBadge, List, Notice, Row, SectionTitle, Tag } from "@/components/ui/misc";
 
 export const metadata: Metadata = { title: "Profile" };
@@ -42,6 +44,18 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
           <span className="text-ink-2"> · Room {p.room}</span>
         </p>
         {RUNNER_TAG[p.runner_status]}
+      </div>
+
+      {p.flagged_at || p.customer_review_required ? (
+        <Notice tone="warning" className="mb-6" title="Your account is under review">
+          {p.customer_review_required ? "Ordering is paused after several missed handoffs." : "Ordering and running are paused."} A Dormdash admin will email you.
+        </Notice>
+      ) : null}
+
+      <SectionTitle action={<span className="tnum font-display text-heading font-extrabold">{formatCents(p.credit_cents)}</span>}>Dormdash credit</SectionTitle>
+      <p className="mt-1 text-small text-ink-3">For delivery fees and tips. No cash value, can&rsquo;t be withdrawn or transferred, never expires.</p>
+      <div className="mb-8">
+        <CreditToggle initial={p.use_credit} />
       </div>
 
       <SectionTitle>Account</SectionTitle>

@@ -31,7 +31,7 @@ afterAll(async () => {
 describe("postgres.js driver (production path)", () => {
   it("applies every migration with multi-statement SQL, and is idempotent", async () => {
     const applied = await migrate(db, { local: false });
-    expect(applied).toEqual(["0001_schema.sql", "0002_rls.sql", "0003_defaults.sql", "0004_runner_stats.sql"]);
+    expect(applied).toEqual(["0001_schema.sql", "0002_rls.sql", "0003_defaults.sql", "0004_runner_stats.sql", "0005_enum_values.sql", "0006_runs_handoff_cases.sql"]);
     expect(await migrate(db, { local: false })).toEqual([]);
   });
 

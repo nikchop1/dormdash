@@ -165,7 +165,7 @@ export async function runnerProblem(runnerId: string, orderId: string, i: { reas
     await takePhoto(t, i.photoId, runnerId, "problem");
     const [c] = await t.query<CaseRow>(
       `insert into public.cases (order_id, type, priority, status, customer_id, runner_id, opened_by, reason, description, outcome, outcome_note, resolved_at, refund_due_at)
-       values ($1, 'runner_problem', 3, 'resolved', $2, $3, $3, $4, $5, 'accident_refunded', 'Treated as an accident. The customer was refunded.', now(), now()) returning *`,
+       values ($1, 'runner_problem', 3, 'resolved', $2, $3, $3, $4, $5, 'accident_refund', 'Treated as an accident. The customer was refunded.', now(), now()) returning *`,
       [o.id, o.customer_id, runnerId, i.reason, i.note.slice(0, 1000)],
     );
     await t.query("update public.photos set case_id = $1 where id = $2", [c.id, i.photoId]);
@@ -300,7 +300,7 @@ export async function resolveCase(adminId: string, caseId: string, outcome: Case
     }
     await t.query(
       `update public.cases set status = 'resolved', outcome = $2, outcome_note = $3, refund_cash_cents = $4, refund_credit_cents = $5,
-         refunded_at = case when $4 + $5 > 0 then now() end, resolved_by = $6, resolved_at = now() where id = $1`,
+         refunded_at = case when $4::int + $5::int > 0 then now() end, resolved_by = $6, resolved_at = now() where id = $1`,
       [c.id, outcome, note, cash, credit, adminId],
     );
     await logEvent(t, o.id, adminId, "case_resolved", null, null, { caseId: c.id, outcome, cash, credit, deducted });
@@ -398,6 +398,7 @@ export async function decideAppeal(adminId: string, caseId: string, decision: "u
 
 export type PartyCaseView = {
   id: string;
+  role: "customer" | "runner";
   type: CaseType;
   label: string;
   status: CaseRow["status"];
@@ -463,6 +464,7 @@ export async function caseForParty(userId: string, caseId: string): Promise<Part
   const appeal = role === "runner" ? await appealableCase(userId) : null;
   return {
     id: c.id,
+    role,
     type: c.type,
     label: CASE_LABEL[c.type],
     status: c.status,

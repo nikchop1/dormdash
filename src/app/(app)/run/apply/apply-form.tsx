@@ -12,7 +12,7 @@ import { api, ClientApiError } from "@/lib/client/api";
 export function ApplyForm({ legalName, homeBuildingId, buildings }: { legalName: string; homeBuildingId: string; buildings: { id: string; name: string }[] }) {
   const router = useRouter();
   const toast = useToast();
-  const [v, setV] = useState({ legalName, homeBuildingId, agree: false });
+  const [v, setV] = useState({ legalName, homeBuildingId, nyuIdNumber: "", agree: false });
   const [idPhotoId, setIdPhotoId] = useState<string | null>(null);
   const [fields, setFields] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
@@ -22,6 +22,7 @@ export function ApplyForm({ legalName, homeBuildingId, buildings }: { legalName:
     const f: Record<string, string> = {};
     if (v.legalName.trim().length < 2) f.legalName = "Enter your legal name as it appears on your ID.";
     if (!v.homeBuildingId) f.homeBuildingId = "Pick the building you live in.";
+    if (!/^N\d{8}$/i.test(v.nyuIdNumber.trim())) f.nyuIdNumber = "Your NYU ID number looks like N12345678.";
     if (!idPhotoId) f.idPhotoId = "Add a photo of your NYU ID.";
     if (!v.agree) f.agree = "You need to agree to the Runner Agreement.";
     setFields(f);
@@ -43,6 +44,7 @@ export function ApplyForm({ legalName, homeBuildingId, buildings }: { legalName:
   return (
     <form onSubmit={submit} noValidate className="flex flex-col gap-5">
       <Input label="Legal name" value={v.legalName} onChange={(e) => setV({ ...v, legalName: e.target.value })} error={fields.legalName} hint="Must match your NYU ID." />
+      <Input label="NYU ID number" value={v.nyuIdNumber} onChange={(e) => setV({ ...v, nyuIdNumber: e.target.value })} error={fields.nyuIdNumber} placeholder="N12345678" autoCapitalize="characters" hint="The N-number on your ID card. Admins check it against the photo." />
       <Select label="Building you live in" value={v.homeBuildingId} onChange={(e) => setV({ ...v, homeBuildingId: e.target.value })} error={fields.homeBuildingId} hint="Residents can deliver to doors in their own building. Everyone else does lobby handoffs.">
         <option value="">Pick a building</option>
         {buildings.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}

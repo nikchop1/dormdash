@@ -2,25 +2,32 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { DoorOpen, Info, TriangleAlert } from "lucide-react";
+import { DoorOpen, Info, KeyRound, ShieldCheck, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input, Segmented, Select, Textarea } from "@/components/ui/form";
+import { Input, Segmented, Select, Switch, Textarea } from "@/components/ui/form";
 import { KeyValue, Money, Notice, Skeleton } from "@/components/ui/misc";
 import { Sheet } from "@/components/ui/sheet";
 import { useToast } from "@/components/ui/toast";
 import { PhotoPicker } from "@/components/photo-picker";
-import { PayPalCheckout } from "@/components/paypal-checkout";
+import { StripeCheckout } from "@/components/stripe-checkout";
 import { api, ClientApiError } from "@/lib/client/api";
 import { formatCents, type Quote } from "@/lib/domain/pricing";
 
 export type Slot = { iso: string; day: string; time: string };
 type B = { id: string; name: string; floors: number; doorRequiresResident: boolean };
 
+export const GUARANTEE_TOOLTIP =
+  "If your order is lost or stolen, you get your delivery fee back and your food value as Dormdash credit. If you're not at your door to give your PIN, there's no refund.";
+
 export function OrderForm({
   spot,
   buildings,
   defaults,
   tipPresets,
+  maxBags,
+  bagFeeCents,
+  creditCents,
+  useCreditDefault,
   runnersOnShift,
   residentsOnShift,
   nextWindow,
@@ -31,30 +38,39 @@ export function OrderForm({
   buildings: B[];
   defaults: { pickupName: string; buildingId: string; floor: string; room: string };
   tipPresets: number[];
+  maxBags: number;
+  bagFeeCents: number;
+  creditCents: number;
+  useCreditDefault: boolean;
   runnersOnShift: number;
   residentsOnShift: Record<string, number>;
   nextWindow: string | null;
   slots: Slot[];
-  payments: { mode: "paypal" | "demo"; paypalClientId: string | null };
+  payments: { mode: "stripe" | "demo"; publishableKey: string | null };
 }) {
   const router = useRouter();
   const toast = useToast();
   const canAsap = runnersOnShift > 0;
-  const [v, setV] = useState({ ...defaults, orderNumber: "", notes: "" });
+  const [v, setV] = useState({ ...defaults, orderNumber: "", notes: "", foodTotal: "" });
   const [photoId, setPhotoId] = useState<string | null>(null);
   const [when, setWhen] = useState<"asap" | "later">(canAsap ? "asap" : "later");
   const [slot, setSlot] = useState(slots[0]?.iso ?? "");
   const [tipChoice, setTipChoice] = useState<number | "custom">(tipPresets.includes(100) ? 100 : tipPresets[0] ?? 0);
   const [customTip, setCustomTip] = useState("");
+  const [bags, setBags] = useState(1);
+  const [useCredit, setUseCredit] = useState(useCreditDefault && creditCents > 0);
   const [fetchedQuote, setQuote] = useState<Quote | null>(null);
+  const [lobbyQuote, setLobbyQuote] = useState<Quote | null>(null);
   const [quoteError, setQuoteError] = useState<string>();
   const [fields, setFields] = useState<Record<string, string>>({});
   const [sheet, setSheet] = useState(false);
   const [placing, setPlacing] = useState(false);
+  const [checkout, setCheckout] = useState<{ orderId: string; clientSecret: string } | null>(null);
 
   const building = buildings.find((b) => b.id === v.buildingId);
   const tipCents = tipChoice === "custom" ? Math.round((parseFloat(customTip) || 0) * 100) : tipChoice;
   const floorNum = Number(v.floor);
+  const foodCents = Math.round((parseFloat(v.foodTotal) || 0) * 100);
   const quote = v.buildingId && floorNum >= 1 ? fetchedQuote : null;
 
   // Live, server-computed quote.
@@ -66,7 +82,7 @@ export function OrderForm({
         const res = await fetch("/api/quote", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ spotId: spot.id, buildingId: v.buildingId, floor: floorNum, tipCents: Math.min(Math.max(tipCents, 0), 5000) }),
+          body: JSON.stringify({ spotId: spot.id, buildingId: v.buildingId, floor: floorNum, tipCents: Math.min(Math.max(tipCents, 0), 5000), foodValueCents: Math.min(foodCents, 50000), bags, useCredit }),
           signal: ctrl.signal,
         });
         const data = await res.json();
@@ -75,6 +91,7 @@ export function OrderForm({
           setQuoteError(data?.error?.message ?? "Couldn't price this one.");
         } else {
           setQuote(data.quote);
+          setLobbyQuote(data.lobbyQuote);
           setQuoteError(undefined);
         }
       } catch {
@@ -85,7 +102,7 @@ export function OrderForm({
       clearTimeout(t);
       ctrl.abort();
     };
-  }, [spot.id, v.buildingId, floorNum, tipCents]);
+  }, [spot.id, v.buildingId, floorNum, tipCents, foodCents, bags, useCredit]);
 
   const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setV((s) => ({ ...s, [k]: e.target.value }));
@@ -99,6 +116,7 @@ export function OrderForm({
     const f: Record<string, string> = {};
     if (!v.pickupName.trim()) f.pickupName = "Whose name is the order under?";
     if (!photoId) f.photo = "Add a screenshot of your order confirmation so the runner grabs the right bag.";
+    if (!(foodCents > 0)) f.foodTotal = "Enter the food total from your receipt.";
     if (!v.buildingId) f.buildingId = "Pick where we're delivering.";
     if (!floorNum || floorNum < 1) f.floor = "Enter your floor.";
     else if (building && floorNum > building.floors) f.floor = `${building.name} has ${building.floors} floors.`;
@@ -133,16 +151,24 @@ export function OrderForm({
       room: v.room,
       notes: v.notes,
       tipCents,
+      foodValueCents: foodCents,
+      bags,
+      useCredit,
       scheduledFor: when === "later" ? slot : null,
       confirmationPhotoId: photoId,
     }),
-    [spot.id, v, floorNum, tipCents, when, slot, photoId],
+    [spot.id, v, floorNum, tipCents, foodCents, bags, useCredit, when, slot, photoId],
   );
 
-  async function placeDemo() {
+  async function place() {
     setPlacing(true);
     try {
-      const res = await api<{ orderId: string }>("/api/orders", { body: body() });
+      const res = await api<{ orderId: string; clientSecret: string | null; mode: string }>("/api/orders", { body: body() });
+      if (res.clientSecret && payments.mode === "stripe") {
+        setCheckout({ orderId: res.orderId, clientSecret: res.clientSecret });
+        setPlacing(false);
+        return;
+      }
       toast("Order placed. We're finding you a runner.");
       router.push(`/orders/${res.orderId}`);
     } catch (e) {
@@ -155,7 +181,8 @@ export function OrderForm({
   }
 
   const residentRunners = v.buildingId ? residentsOnShift[v.buildingId] ?? 0 : 0;
-  const lobbyLikely = building?.doorRequiresResident;
+  const lobbyPossible = building?.doorRequiresResident;
+  const floorSavings = quote && lobbyQuote ? quote.deliveryFeeCents - lobbyQuote.deliveryFeeCents : 0;
 
   return (
     <div className="flex flex-col gap-8 pb-24">
@@ -187,6 +214,22 @@ export function OrderForm({
             if (id) setFields((f) => ({ ...f, photo: "" }));
           }}
         />
+        <div className="grid grid-cols-2 gap-4">
+          <Input
+            label="Food total on your receipt ($)"
+            inputMode="decimal"
+            value={v.foodTotal}
+            onChange={set("foodTotal")}
+            error={fields.foodTotal}
+            placeholder="14.50"
+            hint="Before our fees. It caps any food credit if something goes wrong."
+          />
+          <Select label="Bags" value={String(bags)} onChange={(e) => setBags(Number(e.target.value))} hint={bagFeeCents > 0 ? `${formatCents(bagFeeCents)} per bag after the first` : undefined}>
+            {Array.from({ length: maxBags }, (_, i) => i + 1).map((n) => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </Select>
+        </div>
       </section>
 
       <section aria-labelledby="step2" className="flex flex-col gap-5">
@@ -252,12 +295,30 @@ export function OrderForm({
         {tipChoice === "custom" && (
           <Input label="Custom tip ($)" inputMode="decimal" value={customTip} onChange={(e) => setCustomTip(e.target.value)} error={fields.tip} placeholder="3.00" />
         )}
+        {creditCents > 0 && (
+          <div className="border-y border-line">
+            <Switch
+              label={`Use my ${formatCents(creditCents)} Dormdash credit`}
+              description="Pays delivery fees and tips. Your runner still gets paid in full."
+              checked={useCredit}
+              onChange={setUseCredit}
+            />
+          </div>
+        )}
       </section>
 
-      {lobbyLikely && building && (
+      <Notice tone="accent" icon={<KeyRound />} title="No PIN, no handoff">
+        You&rsquo;ll get a 4-digit PIN. Be at your door when your runner says they&rsquo;re 2 minutes out. If you&rsquo;re not there to give the PIN before the
+        countdown ends, the runner is paid, may keep the food, and there&rsquo;s no refund.
+      </Notice>
+
+      {lobbyPossible && building && (
         <Notice tone="info" icon={<DoorOpen />} title="Door or lobby?">
-          {building.name} needs a resident card to get upstairs. If your runner lives there, they&rsquo;ll bring it to your door. If not, you&rsquo;ll meet them in the lobby.{" "}
-          {residentRunners > 0 ? `${residentRunners} ${residentRunners === 1 ? "runner" : "runners"} from ${building.name} ${residentRunners === 1 ? "is" : "are"} on shift now.` : "No runners from your building are on shift right now, so plan on the lobby."}
+          {building.name} needs a resident card to get upstairs. If your runner lives there, they come to your door. If not, you meet them in the lobby
+          {floorSavings > 0 ? ` and we refund the ${formatCents(floorSavings)} floor add-on automatically` : ""}.{" "}
+          {residentRunners > 0
+            ? `${residentRunners} ${residentRunners === 1 ? "runner" : "runners"} from ${building.name} ${residentRunners === 1 ? "is" : "are"} on shift now.`
+            : "No runners from your building are on shift right now, so plan on the lobby."}
         </Notice>
       )}
 
@@ -265,9 +326,9 @@ export function OrderForm({
       <div className="safe-bottom fixed inset-x-0 bottom-16 z-30 border-t border-line bg-paper shadow-float md:bottom-0 md:left-56">
         <div className="mx-auto flex max-w-2xl items-center gap-4 px-4 py-3 md:px-6">
           <div className="flex-1">
-            <p className="text-caption text-ink-3">{quote?.surgeLabel ? `Busy pricing ${quote.surgeMultiplier}x · total` : "Total to Dormdash"}</p>
+            <p className="text-caption text-ink-3">{quote?.surgeLabel ? `Busy pricing ${quote.surgeMultiplier}x · you pay` : "You pay Dormdash"}</p>
             {quote ? (
-              <Money cents={quote.totalCents} className="font-display text-title font-extrabold" />
+              <Money cents={quote.chargeCents} className="font-display text-title font-extrabold" />
             ) : quoteError ? (
               <p className="text-small text-danger">{quoteError}</p>
             ) : (
@@ -282,7 +343,7 @@ export function OrderForm({
 
       <Sheet
         open={sheet}
-        onClose={() => !placing && setSheet(false)}
+        onClose={() => !placing && !checkout && setSheet(false)}
         title="Confirm and pay"
         description={`${spot.name} to ${building?.name ?? ""}, floor ${v.floor}, room ${v.room}`}
       >
@@ -293,35 +354,56 @@ export function OrderForm({
                 { k: "Base fee", v: formatCents(quote.baseFeeCents) },
                 { k: `Distance (${quote.distanceMiles.toFixed(2)} mi)`, v: formatCents(quote.distanceFeeCents) },
                 { k: `Floor ${v.floor}`, v: formatCents(quote.floorFeeCents) },
+                { k: `Order size (${formatCents(foodCents)} of food)`, v: formatCents(quote.sizeFeeCents) },
                 ...(quote.surgeFeeCents > 0 ? [{ k: `Busy pricing (${quote.surgeMultiplier}x)`, v: formatCents(quote.surgeFeeCents) }] : []),
+                ...(quote.bagFeeCents > 0 ? [{ k: `Extra bags (${bags - 1})`, v: formatCents(quote.bagFeeCents) }] : []),
                 { k: "Delivery fee", v: formatCents(quote.deliveryFeeCents), strong: true },
                 { k: "Tip (all to your runner)", v: formatCents(quote.tipCents) },
-                { k: "Total", v: <span className="font-display text-title font-extrabold">{formatCents(quote.totalCents)}</span>, strong: true },
+                {
+                  k: (
+                    <span className="inline-flex items-center gap-1.5">
+                      Delivery guarantee
+                      <span title={GUARANTEE_TOOLTIP} aria-label={GUARANTEE_TOOLTIP} className="inline-flex text-ink-3">
+                        <ShieldCheck className="size-4" aria-hidden />
+                      </span>
+                    </span>
+                  ),
+                  v: formatCents(quote.guaranteeCents),
+                },
+                ...(quote.creditAppliedCents > 0 ? [{ k: "Dormdash credit", v: <span className="text-success">{formatCents(-quote.creditAppliedCents)}</span> }] : []),
+                { k: "You pay", v: <span className="font-display text-title font-extrabold">{formatCents(quote.chargeCents)}</span>, strong: true },
               ]}
             />
+            <p className="rounded-sm bg-sunken px-3 py-2 text-small text-ink-2">
+              <span className="font-semibold text-ink">Delivery guarantee.</span> {GUARANTEE_TOOLTIP}
+            </p>
             <p className="text-small text-ink-3">
               This is only the delivery. Your food is paid to {spot.name} separately. Cancel free until a runner claims it.
               {when === "later" ? " Scheduled orders are priced for their delivery time." : ""}
             </p>
-            {payments.mode === "demo" ? (
+            {checkout && payments.publishableKey ? (
+              <StripeCheckout
+                publishableKey={payments.publishableKey}
+                clientSecret={checkout.clientSecret}
+                orderId={checkout.orderId}
+                amountCents={quote.chargeCents}
+                onPaid={() => {
+                  toast("Paid. We're finding you a runner.");
+                  router.push(`/orders/${checkout.orderId}`);
+                }}
+                onError={(m) => toast(m, "error")}
+              />
+            ) : (
               <>
-                <p className="rounded-sm bg-sunken px-3 py-2 text-small text-ink-2">
-                  <span className="font-semibold text-ink">Demo payments.</span> No card is charged. Everything else works for real.
-                </p>
-                <Button size="lg" block loading={placing} onClick={placeDemo}>
-                  Pay {formatCents(quote.totalCents)} and place order
+                {payments.mode === "demo" && quote.chargeCents > 0 && (
+                  <p className="rounded-sm bg-sunken px-3 py-2 text-small text-ink-2">
+                    <span className="font-semibold text-ink">Demo payments.</span> No card is charged. Everything else works for real.
+                  </p>
+                )}
+                <Button size="lg" block loading={placing} onClick={place}>
+                  {quote.chargeCents === 0 ? "Place order with credit" : payments.mode === "stripe" ? "Continue to payment" : `Pay ${formatCents(quote.chargeCents)} and place order`}
                 </Button>
               </>
-            ) : (
-              <PayPalCheckout
-                clientId={payments.paypalClientId!}
-                getBody={body}
-                onPlaced={(orderId) => {
-                  toast("Paid. We're finding you a runner.");
-                  router.push(`/orders/${orderId}`);
-                }}
-                onError={(msg) => toast(msg, "error")}
-              />
             )}
           </div>
         )}

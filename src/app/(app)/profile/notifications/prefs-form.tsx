@@ -109,7 +109,7 @@ export function NotificationPrefs({ initial, vapidKey, isRunner }: { initial: Pr
         <div className="divide-y divide-line">
           <Switch label="Order updates" description="Claimed, picked up, delivered." checked={p.push_order_updates} onChange={(v) => update("push_order_updates", v)} />
           {isRunner && <Switch label="New jobs" description="Only while you're on shift." checked={p.push_new_jobs} onChange={(v) => update("push_new_jobs", v)} />}
-          <Switch label="Problem reports" checked={p.push_disputes} onChange={(v) => update("push_disputes", v)} />
+          <Switch label="Cases" description="Problem reports and their outcomes." checked={p.push_disputes} onChange={(v) => update("push_disputes", v)} />
           <Switch label="Account" description="Runner approval, payouts, strikes." checked={p.push_account} onChange={(v) => update("push_account", v)} />
         </div>
       </section>
@@ -117,7 +117,7 @@ export function NotificationPrefs({ initial, vapidKey, isRunner }: { initial: Pr
         <SectionTitle>Email</SectionTitle>
         <div className="divide-y divide-line">
           <Switch label="Order updates" description="Off by default. Push is faster." checked={p.email_order_updates} onChange={(v) => update("email_order_updates", v)} />
-          <Switch label="Problem report outcomes" checked={p.email_disputes} onChange={(v) => update("email_disputes", v)} />
+          <Switch label="Case outcomes" checked={p.email_disputes} onChange={(v) => update("email_disputes", v)} />
           <Switch label="Account" checked={p.email_account} onChange={(v) => update("email_account", v)} />
         </div>
         <p className="mt-3 text-small text-ink-3">Security emails (verification, password resets) always go out.</p>

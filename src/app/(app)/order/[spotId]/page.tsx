@@ -7,7 +7,8 @@ import { coverageStatus, shiftCoverage } from "@/lib/services/coverage";
 import { listBuildings, SPOT_TYPE_LABEL, type Spot } from "@/lib/services/places";
 import { getPricing, flag } from "@/lib/settings";
 import { fromNyWallClock, nyParts, relativeDay, fmtTime } from "@/lib/domain/time";
-import { PageHeader } from "@/components/ui/misc";
+import { customerBlock } from "@/lib/services/orders";
+import { Notice, PageHeader } from "@/components/ui/misc";
 import { OrderForm, type Slot } from "./order-form";
 
 export const metadata: Metadata = { title: "New order" };
@@ -38,6 +39,15 @@ export default async function NewOrderPage({ params }: { params: Promise<{ spotI
   if (!/^[0-9a-f-]{36}$/.test(spotId)) notFound();
   const spot = await q1<Spot>("select * from public.pickup_spots where id = $1 and active", [spotId]);
   if (!spot || (spot.type === "dining_hall" && !(await flag("dining_halls_enabled")))) notFound();
+  const block = customerBlock(user.profile);
+  if (block) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 md:px-6">
+        <PageHeader back={{ href: "/home", label: "Home" }} title={spot.name} />
+        <Notice tone="warning" title="Ordering is paused">{block}</Notice>
+      </div>
+    );
+  }
 
   const [buildings, settings, schedulingOn, coverage, slots, reachable] = await Promise.all([
     listBuildings(),
@@ -73,11 +83,15 @@ export default async function NewOrderPage({ params }: { params: Promise<{ spotI
           room: p.room ?? "",
         }}
         tipPresets={settings.tipPresets}
+        maxBags={settings.maxBags}
+        bagFeeCents={settings.bagFeeCents}
+        creditCents={p.credit_cents}
+        useCreditDefault={p.use_credit}
         runnersOnShift={coverage.onShift}
         residentsOnShift={Object.fromEntries(residents.map((r) => [r.building_id, r.n]))}
         nextWindow={coverage.next?.label ?? null}
         slots={schedulingOn ? slots : []}
-        payments={{ mode: paymentsMode, paypalClientId: paymentsMode === "paypal" ? env.paypal.clientId : null }}
+        payments={{ mode: paymentsMode, publishableKey: paymentsMode === "stripe" ? env.stripe.publishableKey : null }}
       />
     </div>
   );

@@ -7,7 +7,7 @@ import { createServerClient } from "@supabase/ssr";
 // Real authorization happens server-side in every page (requireUser/requireRunner/
 // requireAdmin) and every API route (apiUser/apiRunner/apiAdmin).
 
-const PROTECTED = ["/home", "/orders", "/order", "/run", "/profile", "/notifications", "/admin"];
+const PROTECTED = ["/home", "/orders", "/order", "/run", "/profile", "/notifications", "/admin", "/cases", "/appeal"];
 const AUTH_PAGES = ["/login", "/signup", "/forgot-password"];
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

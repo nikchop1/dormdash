@@ -5,10 +5,21 @@ import { formatCents } from "@/lib/domain/pricing";
 import { Logo, Tower } from "@/components/brand";
 import { ButtonLink } from "@/components/ui/button";
 import { OrderStatusHero } from "@/components/order-status";
-import { JobRows } from "@/components/job-board";
+import { JobRows, RunSummary, type BoardJob } from "@/components/job-board";
 import { Notice } from "@/components/ui/misc";
 
 // Demo data rendered through the app's real components (no mockups).
+const demoJob = (id: string, spotName: string, floor: number, payCents: number, tipCents: number, waitedMin: number, locked: string | null = null): BoardJob => ({
+  id, spotId: spotName, spotName, spotLat: 0, spotLng: 0, buildingId: "t", buildingShort: "Tower", floor, distanceMiles: 0.06,
+  payCents, tipCents, foodValueCents: 1400, waitedMin, locked, createdAt: "2026-01-01T00:00:00Z",
+});
+const DEMO_RUN: BoardJob[] = [
+  demoJob("a", "Waverly Bagel Co.", 7, 288, 100, 3),
+  demoJob("b", "Waverly Bagel Co.", 12, 238, 50, 6),
+  demoJob("c", "8th Street Corner Store", 14, 314, 100, 2),
+  demoJob("d", "Greene Street Ramen", 16, 263, 0, 24),
+  demoJob("e", "Fifth Ave Poke Bar", 9, 450, 200, 1, "Unlocks after 6 more deliveries"),
+];
 function demoTimes() {
   const now = Date.now();
   const iso = (m: number) => new Date(now + m * 60000).toISOString();
@@ -97,15 +108,15 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
                   steps: [
                     ["Order pickup yourself", "In the spot's own app or site, under your name. You pay them directly. We never touch food money."],
                     ["Tell us where it's going", "Screenshot the confirmation, pick ASAP or a time, and pay the delivery fee plus an optional tip."],
-                    ["Meet your runner", "Watch it move live. Give them your 4-digit PIN at the door, or in the lobby if they don't live in your building."],
+                    ["Be there with your PIN", "We ping you when your runner is 2 minutes out. Say your 4-digit PIN as you take the bag. No PIN, no handoff."],
                   ],
                 },
                 {
                   title: "If you're running",
                   steps: [
-                    ["Get verified", "Apply with your NYU ID. We check every runner by hand."],
-                    ["Go on shift when you're free", "Claim one job or a batch going to the same building. Floors are sorted so you ride the elevator once."],
-                    ["Get paid daily", `Keep ${Math.round((1 - s.platformFeePct) * 100)}% of every delivery fee and 100% of tips, paid out to PayPal.`],
+                    ["Get verified", "Apply with your NYU ID and set up payouts. We check every runner by hand."],
+                    ["Heading home? Take a run", "Tap \"I'm heading to my building\" and grab two or three orders picked up near you, going where you're already going."],
+                    ["Get paid on the PIN", `Keep ${Math.round((1 - s.platformFeePct) * 100)}% of every delivery fee and 100% of tips, paid the moment the customer says their PIN. Not home? You still get paid in full.`],
                   ],
                 },
               ].map((col) => (
@@ -161,17 +172,11 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
                   ]}
                 />
               </Phone>
-              <Phone label="What runners see on shift.">
-                <p className="eyebrow">Job board · 4 open</p>
-                <div className="mt-3">
-                  <JobRows
-                    jobs={[
-                      { id: "a", spotName: "Waverly Bagel Co.", buildingShort: "Tower", floor: 7, distanceMiles: 0.06, payCents: 288, tipCents: 100, waitedMin: 3 },
-                      { id: "b", spotName: "Waverly Bagel Co.", buildingShort: "Tower", floor: 12, distanceMiles: 0.06, payCents: 238, tipCents: 50, waitedMin: 6 },
-                      { id: "c", spotName: "West 4th Dumpling House", buildingShort: "Mercer", floor: 6, distanceMiles: 0.08, payCents: 413, tipCents: 200, waitedMin: 4 },
-                      { id: "d", spotName: "Greene Street Ramen", buildingShort: "Tower", floor: 16, distanceMiles: 0.21, payCents: 263, tipCents: 0, waitedMin: 24 },
-                    ]}
-                  />
+              <Phone label="What runners see on their way home.">
+                <p className="eyebrow">Heading to Tower Hall</p>
+                <div className="mt-3 flex flex-col gap-3">
+                  <RunSummary label="3 orders · 2 pickups · $8.40" headingHome jobs={DEMO_RUN.slice(0, 3)} />
+                  <JobRows jobs={DEMO_RUN.slice(3)} />
                 </div>
               </Phone>
             </div>
@@ -219,8 +224,9 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
               {[
                 ["Late?", `If it shows up more than ${s.lateGraceMinutes} minutes after the ETA, your delivery fee comes back automatically. You don't have to ask.`],
                 ["Changed your mind?", `Cancel free until someone claims it. After that, ${formatCents(s.cancelFeeCents)} goes to the runner for their time. Once the food's picked up, it's coming.`],
-                ["Lobby or door?", "Most dorms need a resident card to get upstairs. If your runner lives in your building, it comes to your door. Otherwise you meet them in the lobby. You'll know before you pay."],
-                ["Something wrong?", "Report it from the order. We look at the pickup and drop-off photos and the PIN log, then refund what's fair."],
+                ["Not at your door?", `Your runner sends a photo from your door and gives you ${Math.round(s.doorCountdownSeconds / 60)} minutes. No PIN by then means they're paid in full, may keep the food, and there's no refund.`],
+                ["Lost or stolen?", "Your delivery fee, tip and guarantee come back to your card, and your food's value comes back as Dormdash credit. Every order carries a small delivery guarantee that pays for this."],
+                ["Lobby or door?", "Most dorms need a resident card to get upstairs. If your runner lives in your building, it comes to your door. Otherwise you meet them in the lobby and the floor fee is refunded. You'll know before you pay."],
                 ["Who are the runners?", "NYU students who applied with their student ID and got approved by a person. Three strikes and they're paused."],
               ].map(([t, d]) => (
                 <div key={t} className="grid gap-1 py-5 md:grid-cols-3 md:gap-6">
@@ -234,7 +240,7 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
       </main>
 
       <footer className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-10 text-small text-ink-3 md:flex-row md:items-center md:justify-between md:px-8">
-        <p>Dormdash is an independent student marketplace. Not affiliated with or endorsed by New York University.</p>
+        <p>Dormdash is an independent student marketplace. Not affiliated with or endorsed by New York University or DoorDash.</p>
         <nav aria-label="Legal" className="flex gap-4">
           <Link href="/legal/terms" className="hover:text-ink">Terms</Link>
           <Link href="/legal/privacy" className="hover:text-ink">Privacy</Link>

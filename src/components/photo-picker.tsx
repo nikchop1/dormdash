@@ -8,8 +8,8 @@ import { uploadPhoto } from "@/lib/client/api";
 import { downscale } from "@/lib/client/image";
 
 /**
- * Pick or snap a photo, downscale it in the browser, upload it right away and hand
- * back the photo id. Shows a preview with a retake button.
+ * Pick a photo (receipt screenshot, NYU ID), downscale it in the browser, upload it
+ * right away and hand back the photo id. Never used for evidence photos.
  */
 export function PhotoPicker({
   kind,
@@ -20,7 +20,8 @@ export function PhotoPicker({
   capture,
   className,
 }: {
-  kind: "confirmation" | "pickup" | "dropoff" | "dispute" | "id_card";
+  /** Only non-evidence photos. Evidence (pickup, door, problem, case) uses <LiveCamera>. */
+  kind: "confirmation" | "id_card";
   label: string;
   hint?: string;
   error?: string;

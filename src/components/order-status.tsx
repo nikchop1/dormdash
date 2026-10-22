@@ -32,7 +32,7 @@ const STEP_COPY: Partial<Record<OrderStatus, string>> = {
 /** The order screen's top half: ETA like an elevator display, the runner, the timeline. */
 export function OrderStatusHero(p: StatusHeroProps) {
   const idx = STATUS_STEPS.indexOf(p.status);
-  const cancelled = p.status === "cancelled";
+  const cancelled = p.status === "cancelled" || p.status === "customer_no_show";
   const live = idx >= 1 && idx <= 3;
 
   return (
@@ -43,7 +43,7 @@ export function OrderStatusHero(p: StatusHeroProps) {
             Order <span className="tnum">{p.code}</span> · {p.spotName}
           </p>
           {cancelled ? (
-            <p className="mt-2 font-display text-display-lg font-black uppercase">Cancelled</p>
+            <p className="mt-2 font-display text-display-lg leading-none font-black uppercase">{p.status === "customer_no_show" ? "Missed handoff" : "Cancelled"}</p>
           ) : p.status === "delivered" ? (
             <p className="mt-2 font-display text-display-lg font-black uppercase">Delivered</p>
           ) : p.status === "requested" || p.status === "pending_payment" ? (

@@ -111,53 +111,127 @@ export function SurgeWindows({ windows }: { windows: W[] }) {
 const dollars = (c: number) => (c / 100).toFixed(2);
 const cents = (s: string) => Math.round(parseFloat(s || "0") * 100);
 
+type NumKey = { [K in keyof PricingSettings]: PricingSettings[K] extends number ? K : never }[keyof PricingSettings];
+/** Plain number settings, grouped. "$" fields are edited in dollars and stored in cents. */
+const GROUPS: { title: string; fields: { k: NumKey; l: string; money?: boolean; hint?: string }[] }[] = [
+  {
+    title: "Order size and guarantee",
+    fields: [
+      { k: "bagFeeCents", l: "Each extra bag ($)", money: true, hint: "Added after busy pricing." },
+      { k: "maxBags", l: "Max bags per order" },
+      { k: "guaranteeCents", l: "Delivery guarantee ($)", money: true, hint: "Goes to the Guarantee Fund." },
+    ],
+  },
+  {
+    title: "Reliability",
+    fields: [
+      { k: "lateGraceMinutes", l: "Late after ETA + (min)", hint: "Then the fee is auto-refunded." },
+      { k: "unclaimedPingMinutes", l: "Re-ping runners after (min)" },
+      { k: "unclaimedCancelMinutes", l: "Offer refund-cancel after (min)" },
+      { k: "strikeThreshold", l: "Strikes to suspend" },
+      { k: "maxActiveOrders", l: "Max active orders per runner" },
+      { k: "freeUnclaimsPerWeek", l: "Free drops per week" },
+      { k: "headingHomeRadiusMiles", l: "Heading-home pickup radius (mi)" },
+    ],
+  },
+  {
+    title: "Handoff timers",
+    fields: [
+      { k: "doorCountdownSeconds", l: "Door countdown (s)", hint: "Before “Customer not here” unlocks." },
+      { k: "runnerAbsentGraceSeconds", l: "Runner-absent grace (s)", hint: "After “I’m at my door”, then a case opens." },
+      { k: "presentWindowAfterSeconds", l: "“I’m at my door” visible for (s)", hint: "After the countdown ends." },
+      { k: "pinClaimWindowSeconds", l: "“Gave PIN, no food” window (s)" },
+      { k: "missingDeliveryMinutes", l: "Missing delivery after ETA + (min)" },
+    ],
+  },
+  {
+    title: "Abuse patterns",
+    fields: [
+      { k: "noShowWarnCount", l: "No-shows to warn" },
+      { k: "noShowReviewCount", l: "No-shows to require review" },
+      { k: "noShowWindowDays", l: "No-show window (days)" },
+      { k: "patternWindowDays", l: "Pattern window (days)" },
+      { k: "patternCounterparties", l: "Distinct counterparties to flag" },
+      { k: "noShowRatePct", l: "Runner no-show rate to flag (%)" },
+      { k: "noShowRateMinOrders", l: "Rate needs at least (orders)" },
+      { k: "freeProblemReportsPer30d", l: "Free runner problem reports / 30 days" },
+    ],
+  },
+  {
+    title: "Cases and retention",
+    fields: [
+      { k: "caseResponseHours", l: "Runner response window (h)" },
+      { k: "refundTargetHours", l: "Refund target (h)" },
+      { k: "appealDays", l: "Appeal window (days)" },
+      { k: "evidenceRetentionDays", l: "Keep evidence photos (days)" },
+    ],
+  },
+];
+
+type Tier = Record<string, string>;
+
 export function PricingForm({ initial }: { initial: PricingSettings }) {
   const { run, busy } = useAction();
   const [v, setV] = useState({
     base: dollars(initial.baseFeeCents),
-    dist: initial.distanceTiers.map((t) => ({ max: String(t.maxMiles), add: dollars(t.addCents) })),
-    floors: initial.floorTiers.map((t) => ({ max: t.maxFloor === null ? "" : String(t.maxFloor), add: dollars(t.addCents) })),
     radius: String(initial.maxRadiusMiles),
     weatherMult: String(initial.weatherMultiplier),
     platformPct: String(Math.round(initial.platformFeePct * 100)),
     cancelFee: dollars(initial.cancelFeeCents),
-    grace: String(initial.lateGraceMinutes),
-    ping: String(initial.unclaimedPingMinutes),
-    cancelAfter: String(initial.unclaimedCancelMinutes),
-    strikes: String(initial.strikeThreshold),
-    maxActive: String(initial.maxActiveOrders),
-    freeUnclaims: String(initial.freeUnclaimsPerWeek),
     tips: initial.tipPresets.map(dollars).join(", "),
-    hold: String(initial.payoutHoldHours),
-    minPayout: dollars(initial.minPayoutCents),
   });
+  const [tiers, setTiers] = useState<Record<"dist" | "floors" | "sizes" | "levels", Tier[]>>({
+    dist: initial.distanceTiers.map((t) => ({ max: String(t.maxMiles), add: dollars(t.addCents) })),
+    floors: initial.floorTiers.map((t) => ({ max: t.maxFloor === null ? "" : String(t.maxFloor), add: dollars(t.addCents) })),
+    sizes: initial.sizeTiers.map((t) => ({ max: t.maxCents === null ? "" : dollars(t.maxCents), add: dollars(t.addCents) })),
+    levels: initial.levelTiers.map((t) => ({ min: String(t.minDeliveries), max: t.maxFoodCents === null ? "" : dollars(t.maxFoodCents) })),
+  });
+  const [nums, setNums] = useState<Record<string, string>>(() =>
+    Object.fromEntries(GROUPS.flatMap((g) => g.fields.map((fl) => [fl.k, fl.money ? dollars(initial[fl.k]) : String(initial[fl.k])]))),
+  );
   const f = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement>) => setV({ ...v, [k]: e.target.value });
+  const tier = (key: keyof typeof tiers, i: number, field: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setTiers({ ...tiers, [key]: tiers[key].map((x, j) => (j === i ? { ...x, [field]: e.target.value } : x)) });
 
   async function save() {
+    const scalars = Object.fromEntries(GROUPS.flatMap((g) => g.fields.map((fl) => [fl.k, fl.money ? cents(nums[fl.k]) : Number(nums[fl.k])])));
     await run("save", "/api/admin/pricing", {
       method: "PUT",
       ok: "Pricing saved.",
       body: {
+        ...initial,
+        ...scalars,
         baseFeeCents: cents(v.base),
-        distanceTiers: v.dist.map((t) => ({ maxMiles: Number(t.max), addCents: cents(t.add) })),
-        floorTiers: v.floors.map((t) => ({ maxFloor: t.max === "" ? null : Number(t.max), addCents: cents(t.add) })),
+        distanceTiers: tiers.dist.map((t) => ({ maxMiles: Number(t.max), addCents: cents(t.add) })),
+        floorTiers: tiers.floors.map((t) => ({ maxFloor: t.max === "" ? null : Number(t.max), addCents: cents(t.add) })),
+        sizeTiers: tiers.sizes.map((t) => ({ maxCents: t.max === "" ? null : cents(t.max), addCents: cents(t.add) })),
+        levelTiers: tiers.levels.map((t) => ({ minDeliveries: Number(t.min), maxFoodCents: t.max === "" ? null : cents(t.max) })),
         maxRadiusMiles: Number(v.radius),
-        weatherSurgeOn: initial.weatherSurgeOn,
         weatherMultiplier: Number(v.weatherMult),
         platformFeePct: Number(v.platformPct) / 100,
         cancelFeeCents: cents(v.cancelFee),
-        lateGraceMinutes: Number(v.grace),
-        unclaimedPingMinutes: Number(v.ping),
-        unclaimedCancelMinutes: Number(v.cancelAfter),
-        strikeThreshold: Number(v.strikes),
-        maxActiveOrders: Number(v.maxActive),
-        freeUnclaimsPerWeek: Number(v.freeUnclaims),
         tipPresets: v.tips.split(",").map((t) => cents(t.trim())).filter((n) => !isNaN(n)),
-        payoutHoldHours: Number(v.hold),
-        minPayoutCents: cents(v.minPayout),
       },
     });
   }
+
+  const tierRows = (key: keyof typeof tiers, a: { field: string; label: (i: number) => string; numeric?: boolean; blank?: string }, b: { field: string; label: string; blank?: string }) => (
+    <div className="flex flex-col gap-2">
+      {tiers[key].map((t, i) => (
+        <div key={i} className="grid grid-cols-2 gap-3">
+          <Input
+            label={a.label(i)}
+            inputMode={a.numeric ? "numeric" : "decimal"}
+            value={t[a.field]}
+            placeholder={a.blank}
+            onChange={tier(key, i, a.field)}
+            hint={a.blank && i === tiers[key].length - 1 ? `Leave blank: ${a.blank}` : undefined}
+          />
+          <Input label={b.label} inputMode="decimal" value={t[b.field]} placeholder={b.blank} onChange={tier(key, i, b.field)} />
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <section className="mt-8">
@@ -172,37 +246,31 @@ export function PricingForm({ initial }: { initial: PricingSettings }) {
       </div>
 
       <h3 className="mt-6 mb-2 text-small font-semibold">Distance add-on (spot to building)</h3>
-      <div className="flex flex-col gap-2">
-        {v.dist.map((t, i) => (
-          <div key={i} className="grid grid-cols-2 gap-3">
-            <Input label={`Up to (mi)`} inputMode="decimal" value={t.max} onChange={(e) => setV({ ...v, dist: v.dist.map((x, j) => (j === i ? { ...x, max: e.target.value } : x)) })} />
-            <Input label="Add ($)" inputMode="decimal" value={t.add} onChange={(e) => setV({ ...v, dist: v.dist.map((x, j) => (j === i ? { ...x, add: e.target.value } : x)) })} />
-          </div>
-        ))}
-      </div>
+      {tierRows("dist", { field: "max", label: () => "Up to (mi)" }, { field: "add", label: "Add ($)" })}
       <h3 className="mt-6 mb-2 text-small font-semibold">Floor add-on</h3>
-      <div className="flex flex-col gap-2">
-        {v.floors.map((t, i) => (
-          <div key={i} className="grid grid-cols-2 gap-3">
-            <Input label="Up to floor" inputMode="numeric" value={t.max} placeholder="and above" onChange={(e) => setV({ ...v, floors: v.floors.map((x, j) => (j === i ? { ...x, max: e.target.value } : x)) })} hint={i === v.floors.length - 1 ? "Leave blank: every floor above" : undefined} />
-            <Input label="Add ($)" inputMode="decimal" value={t.add} onChange={(e) => setV({ ...v, floors: v.floors.map((x, j) => (j === i ? { ...x, add: e.target.value } : x)) })} />
-          </div>
-        ))}
-      </div>
+      {tierRows("floors", { field: "max", label: () => "Up to floor", numeric: true, blank: "every floor above" }, { field: "add", label: "Add ($)" })}
+      <h3 className="mt-6 mb-2 text-small font-semibold">Order size add-on (by food total)</h3>
+      {tierRows("sizes", { field: "max", label: () => "Food up to ($)", blank: "everything above" }, { field: "add", label: "Add ($)" })}
 
-      <SectionTitle className="mt-8">Reliability rules</SectionTitle>
-      <div className="mt-3 grid grid-cols-2 gap-4 md:grid-cols-3">
-        <Input label="Late after ETA + (min)" inputMode="numeric" value={v.grace} onChange={f("grace")} hint="Then the fee is auto-refunded." />
-        <Input label="Re-ping runners after (min)" inputMode="numeric" value={v.ping} onChange={f("ping")} />
-        <Input label="Offer refund-cancel after (min)" inputMode="numeric" value={v.cancelAfter} onChange={f("cancelAfter")} />
-        <Input label="Strikes to suspend" inputMode="numeric" value={v.strikes} onChange={f("strikes")} />
-        <Input label="Max active orders per runner" inputMode="numeric" value={v.maxActive} onChange={f("maxActive")} />
-        <Input label="Free unclaims per week" inputMode="numeric" value={v.freeUnclaims} onChange={f("freeUnclaims")} />
-        <Input label="Payout hold (hours)" inputMode="numeric" value={v.hold} onChange={f("hold")} />
-        <Input label="Minimum payout ($)" inputMode="decimal" value={v.minPayout} onChange={f("minPayout")} />
-      </div>
+      <SectionTitle className="mt-8">Runner levels</SectionTitle>
+      <p className="mt-1 mb-3 text-small text-ink-3">Max food value per order. Active food value can&rsquo;t exceed twice that. An upheld case drops a runner one level.</p>
+      {tierRows("levels", { field: "min", label: (i) => `Level ${i + 1} from (deliveries)`, numeric: true }, { field: "max", label: "Max food per order ($)", blank: "no limit" })}
+
+      {GROUPS.map((g) => (
+        <div key={g.title}>
+          <SectionTitle className="mt-8">{g.title}</SectionTitle>
+          <div className="mt-3 grid grid-cols-2 gap-4 md:grid-cols-3">
+            {g.fields.map((fl) => (
+              <Input key={fl.k} label={fl.l} hint={fl.hint} inputMode="decimal" value={nums[fl.k]} onChange={(e) => setNums({ ...nums, [fl.k]: e.target.value })} />
+            ))}
+          </div>
+        </div>
+      ))}
+
       <div className="sticky bottom-20 mt-6 flex items-center justify-between gap-4 border-t border-line bg-paper py-3 md:bottom-0">
-        <p className="tnum text-small text-ink-2">Example: floor 14, 0.15 mi = {formatCents(cents(v.base) + cents(v.dist.find((t) => 0.15 <= Number(t.max))?.add ?? "0") + cents(v.floors.find((t) => t.max === "" || 14 <= Number(t.max))?.add ?? "0"))} before surge</p>
+        <p className="tnum text-small text-ink-2">
+          Example: floor 14, 0.15 mi = {formatCents(cents(v.base) + cents(tiers.dist.find((t) => 0.15 <= Number(t.max))?.add ?? "0") + cents(tiers.floors.find((t) => t.max === "" || 14 <= Number(t.max))?.add ?? "0"))} before size, bags and surge
+        </p>
         <Button onClick={save} loading={!!busy}>Save pricing</Button>
       </div>
     </section>

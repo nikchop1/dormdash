@@ -115,3 +115,75 @@ export function toCsv(rows: Record<string, unknown>[]): string {
   };
   return [cols.join(","), ...rows.map((r) => cols.map((c) => esc(r[c])).join(","))].join("\n") + "\n";
 }
+
+export type SafetyMetrics = {
+  ordersPerRun: number | null;
+  headingHomeSessions: number;
+  headingHomeRunsPct: number | null;
+  noShows: number;
+  runnerNotAtDoor: number;
+  pinNoFood: number;
+  missingDeliveries: number;
+  confirmedThefts: number;
+  problemReports: number;
+  autoRejected: number;
+  fundBalanceCents: number;
+  fundPaidOutCents: number;
+  fundShortfallCents: number;
+  outstandingCreditCents: number;
+  lossPer1000Cents: number | null;
+  flaggedUsers: number;
+  reviewRequired: number;
+  heldNoShowPayouts: number;
+};
+
+/** Section 16 metrics: runs, handoff problems, cases, the Guarantee Fund and credit liability. */
+export async function safetyMetrics(days: KpiRange): Promise<SafetyMetrics> {
+  const r = await q1<SafetyMetrics>(
+    `with win as (select now() - make_interval(days => $1) as since),
+     runs as (select r.id, r.heading_home, (select count(*) from public.orders o where o.run_id = r.id) as n
+              from public.runs r, win where r.created_at >= win.since),
+     cs as (select c.* from public.cases c, win where c.created_at >= win.since),
+     led as (select l.* from public.ledger l, win where l.created_at >= win.since),
+     ords as (select count(*)::int as n from public.orders o, win where o.created_at >= win.since and o.status <> 'pending_payment')
+     select
+       (select avg(n)::float8 from runs where n > 0) as "ordersPerRun",
+       (select count(*)::int from public.heading_home_sessions h, win where h.created_at >= win.since) as "headingHomeSessions",
+       (select (100.0 * count(*) filter (where heading_home) / nullif(count(*), 0))::float8 from runs) as "headingHomeRunsPct",
+       (select count(*)::int from public.orders o, win where o.status = 'customer_no_show' and o.no_show_at >= win.since) as "noShows",
+       (select count(*)::int from cs where type = 'runner_not_at_door') as "runnerNotAtDoor",
+       (select count(*)::int from cs where type = 'pin_no_food') as "pinNoFood",
+       (select count(*)::int from cs where type = 'missing_delivery') as "missingDeliveries",
+       (select count(*)::int from cs where outcome = 'confirm_theft') as "confirmedThefts",
+       (select count(*)::int from cs where type = 'runner_problem') as "problemReports",
+       (select count(*)::int from cs where auto_rejected) as "autoRejected",
+       (select coalesce(sum(case when kind in ('guarantee_in','runner_deduction') then amount_cents when kind = 'guarantee_out' then -amount_cents else 0 end), 0)::int
+          from public.ledger where kind in ('guarantee_in','runner_deduction','guarantee_out')) as "fundBalanceCents",
+       (select coalesce(sum(amount_cents), 0)::int from led where kind = 'guarantee_out') as "fundPaidOutCents",
+       (select coalesce(sum(amount_cents), 0)::int from led where kind = 'fund_shortfall') as "fundShortfallCents",
+       (select coalesce(sum(credit_cents), 0)::int from public.profiles) as "outstandingCreditCents",
+       (select case when (select n from ords) = 0 then null else
+          (1000.0 * (coalesce((select sum(refund_cash_cents + refund_credit_cents) from cs where outcome in ('confirm_theft','accident_refund')), 0)) / (select n from ords))::float8 end) as "lossPer1000Cents",
+       (select count(*)::int from public.profiles where flagged_at is not null) as "flaggedUsers",
+       (select count(*)::int from public.profiles where customer_review_required) as "reviewRequired",
+       (select count(*)::int from public.orders where payout_review) as "heldNoShowPayouts"`,
+    [days],
+  );
+  return r!;
+}
+
+/** How many runners sit at each level (completed deliveries minus demotion offset). */
+export async function levelDistribution(tiers: { minDeliveries: number }[]) {
+  const rows = await q<{ progress: number }>(
+    `select greatest(0, (select count(*) from public.orders o where o.runner_id = p.id and o.status = 'delivered') - p.level_offset)::int as progress
+     from public.profiles p where p.runner_status in ('approved','suspended') and p.status <> 'deleted'`,
+  );
+  const sorted = [...tiers].sort((a, b) => a.minDeliveries - b.minDeliveries);
+  const counts = sorted.map(() => 0);
+  for (const r of rows) {
+    let i = 0;
+    for (let k = 0; k < sorted.length; k++) if (r.progress >= sorted[k].minDeliveries) i = k;
+    counts[i]++;
+  }
+  return sorted.map((t, i) => ({ level: i + 1, minDeliveries: t.minDeliveries, runners: counts[i] }));
+}

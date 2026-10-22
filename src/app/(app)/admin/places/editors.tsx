@@ -7,18 +7,18 @@ import { Sheet } from "@/components/ui/sheet";
 import { cn } from "@/lib/cn";
 import { useAction } from "@/lib/client/use-action";
 
-type B = { id?: string; name: string; shortName: string; address: string; lat: number | string; lng: number | string; floorCount: number | string; doorRequiresResident: boolean; active: boolean };
+type B = { id?: string; name: string; shortName: string; address: string; lat: number | string; lng: number | string; floorCount: number | string; doorRequiresResident: boolean; handoffRadiusM: number | string; active: boolean };
 type S = { id?: string; name: string; address: string; lat: number | string; lng: number | string; type: string; active: boolean; pickupNotes: string; verifyBeforeLaunch: boolean };
 
 export function BuildingEditor({ building }: { building?: B }) {
   const { run, busy } = useAction();
   const [open, setOpen] = useState(false);
-  const [v, setV] = useState<B>(building ?? { name: "", shortName: "", address: "", lat: "", lng: "", floorCount: "", doorRequiresResident: true, active: true });
+  const [v, setV] = useState<B>(building ?? { name: "", shortName: "", address: "", lat: "", lng: "", floorCount: "", doorRequiresResident: true, handoffRadiusM: 75, active: true });
   const set = (k: keyof B) => (e: React.ChangeEvent<HTMLInputElement>) => setV({ ...v, [k]: e.target.type === "checkbox" ? e.target.checked : e.target.value });
   async function save() {
     const ok = await run("save", building ? `/api/admin/buildings/${building.id}` : "/api/admin/buildings", {
       method: building ? "PATCH" : "POST",
-      body: { ...v, lat: Number(v.lat), lng: Number(v.lng), floorCount: Number(v.floorCount) },
+      body: { ...v, lat: Number(v.lat), lng: Number(v.lng), floorCount: Number(v.floorCount), handoffRadiusM: Number(v.handoffRadiusM) },
       ok: "Saved. Distances recalculated.",
     });
     if (ok) setOpen(false);
@@ -35,7 +35,10 @@ export function BuildingEditor({ building }: { building?: B }) {
             <Input label="Latitude" inputMode="decimal" value={String(v.lat)} onChange={set("lat")} />
             <Input label="Longitude" inputMode="decimal" value={String(v.lng)} onChange={set("lng")} />
           </div>
-          <Input label="Floors" inputMode="numeric" value={String(v.floorCount)} onChange={set("floorCount")} />
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Floors" inputMode="numeric" value={String(v.floorCount)} onChange={set("floorCount")} />
+            <Input label="Handoff radius (m)" inputMode="numeric" value={String(v.handoffRadiusM)} onChange={set("handoffRadiusM")} hint="How close the runner must be at the door." />
+          </div>
           <Checkbox label="Door delivery needs a resident runner (building requires a resident card)" checked={v.doorRequiresResident} onChange={set("doorRequiresResident")} />
           <Checkbox label="Active" checked={v.active} onChange={set("active")} />
         </div>

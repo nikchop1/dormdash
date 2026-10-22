@@ -3,8 +3,8 @@ import Link from "next/link";
 import { Download } from "lucide-react";
 import { q1 } from "@/lib/db";
 import { paymentsMode } from "@/lib/env";
-import { kpiSummary, ordersByBuilding, ordersBySpot, ordersPerDay, peakHeatmap, type KpiRange } from "@/lib/services/kpis";
-import { getCurrentSurge } from "@/lib/settings";
+import { kpiSummary, levelDistribution, ordersByBuilding, ordersBySpot, ordersPerDay, peakHeatmap, safetyMetrics, type KpiRange, type SafetyMetrics } from "@/lib/services/kpis";
+import { getCurrentSurge, getPricing } from "@/lib/settings";
 import { runnersOnShift } from "@/lib/services/coverage";
 import { formatCents } from "@/lib/domain/pricing";
 import { cn } from "@/lib/cn";
@@ -29,19 +29,22 @@ const pct = (n: number | null) => (n === null ? "n/a" : `${Math.round(n)}%`);
 export default async function AdminOverview({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
   const days = (RANGES.includes(Number(sp.days) as KpiRange) ? Number(sp.days) : 30) as KpiRange;
-  const [s, daily, byBuilding, bySpot, heat, queues, onShift, surge] = await Promise.all([
+  const pricing = await getPricing();
+  const [s, daily, byBuilding, bySpot, heat, queues, onShift, surge, safety, levels] = await Promise.all([
     kpiSummary(days),
     ordersPerDay(days),
     ordersByBuilding(days),
     ordersBySpot(days),
     peakHeatmap(days),
-    q1<{ apps: number; disputes: number; live: number }>(
+    q1<{ apps: number; cases: number; live: number }>(
       `select (select count(*)::int from public.runner_applications where status = 'pending') as apps,
-              (select count(*)::int from public.disputes where status <> 'resolved') as disputes,
+              (select count(*)::int from public.cases where status <> 'resolved') as cases,
               (select count(*)::int from public.orders where status in ('requested','claimed','picked_up','on_the_way')) as live`,
     ),
     runnersOnShift(),
     getCurrentSurge(),
+    safetyMetrics(days),
+    levelDistribution(pricing.levelTiers),
   ]);
 
   const stats: { label: string; value: string; sub?: string }[] = [
@@ -78,12 +81,12 @@ export default async function AdminOverview({ searchParams }: { searchParams: Pr
 
       <div className="mb-6 flex flex-wrap gap-2">
         {queues!.apps > 0 && <Link href="/admin/runners" className="link text-small font-semibold">{queues!.apps} runner application{queues!.apps === 1 ? "" : "s"} waiting</Link>}
-        {queues!.disputes > 0 && <Link href="/admin/disputes" className="link ml-4 text-small font-semibold">{queues!.disputes} open dispute{queues!.disputes === 1 ? "" : "s"}</Link>}
+        {queues!.cases > 0 && <Link href="/admin/cases" className="link ml-4 text-small font-semibold">{queues!.cases} open case{queues!.cases === 1 ? "" : "s"}</Link>}
         <span className="tnum ml-auto text-small text-ink-3">{queues!.live} live orders · {surge ? `busy pricing ${surge.multiplier}x (${surge.label})` : "normal pricing"}</span>
       </div>
       {paymentsMode === "demo" && (
         <Notice tone="warning" className="mb-6" title="Demo payments mode">
-          No real money is moving. Revenue numbers are from the demo ledger. Add PayPal credentials to go live (see PAYMENTS.md).
+          No real money is moving. Revenue numbers are from the demo ledger. Add Stripe keys to go live (see PAYMENTS.md).
         </Notice>
       )}
 
@@ -97,6 +100,8 @@ export default async function AdminOverview({ searchParams }: { searchParams: Pr
         ))}
       </section>
       <div className="mt-2 flex items-center justify-end gap-2"><RunPayouts /><Csv report="summary" days={days}>Summary CSV</Csv></div>
+
+      <SafetyPanel m={safety} levels={levels} />
 
       <div className="mt-8 grid gap-10 lg:grid-cols-2">
         <section>
@@ -145,5 +150,69 @@ export default async function AdminOverview({ searchParams }: { searchParams: Pr
         ))}
       </div>
     </div>
+  );
+}
+
+function SafetyPanel({ m, levels }: { m: SafetyMetrics; levels: { level: number; minDeliveries: number; runners: number }[] }) {
+  const groups: { title: string; items: { k: string; v: string; warn?: boolean }[] }[] = [
+    {
+      title: "Runs",
+      items: [
+        { k: "Orders per run", v: m.ordersPerRun === null ? "n/a" : m.ordersPerRun.toFixed(1) },
+        { k: "Heading-home sessions", v: String(m.headingHomeSessions) },
+        { k: "Runs from heading home", v: pct(m.headingHomeRunsPct) },
+      ],
+    },
+    {
+      title: "Handoffs",
+      items: [
+        { k: "Customer no-shows", v: String(m.noShows) },
+        { k: "Runner not at door", v: String(m.runnerNotAtDoor) },
+        { k: "PIN given, no food", v: String(m.pinNoFood), warn: m.pinNoFood > 0 },
+        { k: "Missing deliveries", v: String(m.missingDeliveries), warn: m.missingDeliveries > 0 },
+        { k: "Runner problem reports", v: String(m.problemReports) },
+        { k: "Claims auto-rejected (PIN entered)", v: String(m.autoRejected) },
+        { k: "Confirmed thefts", v: String(m.confirmedThefts), warn: m.confirmedThefts > 0 },
+      ],
+    },
+    {
+      title: "Guarantee Fund and credit",
+      items: [
+        { k: "Fund balance (all time)", v: formatCents(m.fundBalanceCents), warn: m.fundBalanceCents < 0 },
+        { k: "Paid out of the fund", v: formatCents(m.fundPaidOutCents) },
+        { k: "Shortfall covered by platform", v: formatCents(m.fundShortfallCents), warn: m.fundShortfallCents > 0 },
+        { k: "Outstanding customer credit", v: formatCents(m.outstandingCreditCents) },
+        { k: "Loss per 1,000 orders", v: m.lossPer1000Cents === null ? "n/a" : formatCents(Math.round(m.lossPer1000Cents)) },
+      ],
+    },
+    {
+      title: "Accounts",
+      items: [
+        { k: "Flagged for review", v: String(m.flaggedUsers), warn: m.flaggedUsers > 0 },
+        { k: "Customers paused (no-shows)", v: String(m.reviewRequired), warn: m.reviewRequired > 0 },
+        { k: "No-show payouts held", v: String(m.heldNoShowPayouts), warn: m.heldNoShowPayouts > 0 },
+        ...levels.map((l) => ({ k: `Level ${l.level} runners (${l.minDeliveries}+ deliveries)`, v: String(l.runners) })),
+      ],
+    },
+  ];
+  return (
+    <section className="mt-10" aria-label="Safety">
+      <SectionTitle action={<Link href="/admin/cases" className="link text-small font-semibold">Case queue</Link>}>Safety and trust</SectionTitle>
+      <div className="mt-2 grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+        {groups.map((g) => (
+          <div key={g.title}>
+            <p className="eyebrow">{g.title}</p>
+            <dl className="tnum mt-2 divide-y divide-line text-small">
+              {g.items.map((it) => (
+                <div key={it.k} className="flex justify-between gap-3 py-1.5">
+                  <dt className="text-ink-2">{it.k}</dt>
+                  <dd className={cn("font-semibold", it.warn && "text-danger")}>{it.v}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }

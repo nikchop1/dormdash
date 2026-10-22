@@ -38,7 +38,7 @@ let phoneN = 100;
 export async function makeUser(
   db: Db,
   email: string,
-  opts: { building: string; floor?: number; runner?: "approved" | "pending" | "suspended"; home?: string; onShift?: boolean; admin?: boolean; payoutEmail?: string } ,
+  opts: { building: string; floor?: number; runner?: "approved" | "pending" | "suspended"; home?: string; onShift?: boolean; admin?: boolean; payouts?: boolean },
 ) {
   const id = await localAuth.createConfirmedUser({
     email,
@@ -46,8 +46,8 @@ export async function makeUser(
     metadata: { full_name: email.split("@")[0].replace(/\d/g, "") + " Tester", phone: `+1212555${String(phoneN++).padStart(4, "0")}`, building_id: opts.building, floor: String(opts.floor ?? 9), room: "901", terms_accepted: "true" },
   });
   await db.query(
-    "update public.profiles set runner_status = $2, runner_home_building_id = $3, on_shift = $4, is_admin = $5, payout_email = $6 where id = $1",
-    [id, opts.runner ?? "none", opts.home ?? null, !!opts.onShift, !!opts.admin, opts.payoutEmail ?? (opts.runner ? email : null)],
+    "update public.profiles set runner_status = $2, runner_home_building_id = $3, on_shift = $4, is_admin = $5, stripe_account_id = $6, payouts_enabled = $6::text is not null where id = $1",
+    [id, opts.runner ?? "none", opts.home ?? null, !!opts.onShift, !!opts.admin, opts.runner && opts.payouts !== false ? `acct_demo_${id.slice(0, 8)}` : null],
   );
   return id;
 }
@@ -82,12 +82,27 @@ export async function loginAs(browser: string, email: string, password = PASSWOR
   if (r.status !== 200 || (r.body as { ok?: boolean }).ok !== true) throw new Error(`login failed for ${email}: ${JSON.stringify(r.body)}`);
 }
 
-export async function photo(db: Db, userId: string, kind: string) {
+/**
+ * Insert a photo row directly. Evidence kinds are marked as live-camera captures with a
+ * location result (the camera upload route itself is covered in its own test).
+ */
+export async function photo(db: Db, userId: string, kind: string, location: "in_range" | "out_of_range" | "denied" = "in_range") {
+  const evidence = ["pickup", "door", "problem", "case"].includes(kind);
   const [p] = await db.query<{ id: string }>(
-    "insert into public.photos (kind, bucket, path, uploaded_by) values ($1, 'order-photos', $2, $3) returning id",
-    [kind, `${userId}/${kind}/${Math.random().toString(36).slice(2)}.png`, userId],
+    "insert into public.photos (kind, bucket, path, uploaded_by, via_camera, captured_at, location_status, distance_m) values ($1, 'order-photos', $2, $3, $4, now(), $5, $6) returning id",
+    [kind, `${userId}/${kind}/${Math.random().toString(36).slice(2)}.jpg`, userId, evidence, evidence ? location : null, evidence && location !== "denied" ? (location === "in_range" ? 12 : 400) : null],
   );
   return p.id;
+}
+
+/** A 1x1 baseline JPEG with no EXIF, like the in-app camera's canvas output. */
+export function tinyJpeg(): Uint8Array {
+  return Uint8Array.from(
+    Buffer.from(
+      "/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=",
+      "base64",
+    ),
+  );
 }
 
 export function tinyPng(): Uint8Array {

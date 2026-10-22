@@ -31,7 +31,7 @@ beforeAll(async () => {
   const mk = async (who: string) => {
     const user = { id: ids[who], email: `${who}@nyu.edu`, emailVerified: true, profile: (await loadProfile(ids[who]))!, isAdmin: false, isRunner: false };
     return (await createOrder(user, {
-      spotId: f.near, pickupName: who, orderNumber: "", buildingId: f.tower, floor: 9, room: "901", notes: "", tipCents: 100, scheduledFor: null,
+      spotId: f.near, pickupName: who, orderNumber: "", buildingId: f.tower, floor: 9, room: "901", notes: "", tipCents: 100, foodValueCents: 1400, bags: 1, useCredit: true, scheduledFor: null,
       confirmationPhotoId: await photo(db, ids[who], "confirmation"),
     })).orderId;
   };
@@ -85,6 +85,26 @@ describe("row level security (as the database sees it)", () => {
 
   it("server-only tables are closed to signed-in users", async () => {
     await expect(visible(ids.admin, "select * from public.rate_limits")).rejects.toThrow(/permission denied/);
+    await expect(visible(ids.alice, "select * from public.camera_tokens")).rejects.toThrow(/permission denied/);
+    await expect(visible(ids.alice, "select * from public.blocked_identities")).rejects.toThrow(/permission denied/);
+  });
+
+  it("each case party sees only its own thread with admins; call logs and incidents are admin-only", async () => {
+    await db.query("update public.orders set runner_id = $2 where id = $1", [orderA, ids.runOn]);
+    const [c] = await db.query<{ id: string }>(
+      "insert into public.cases (order_id, type, customer_id, runner_id) values ($1, 'customer_claim', $2, $3) returning id",
+      [orderA, ids.alice, ids.runOn],
+    );
+    await db.query("insert into public.case_messages (case_id, party, author_id, from_admin, body) values ($1, 'customer', $2, true, 'to alice'), ($1, 'runner', $2, true, 'to runner')", [c.id, ids.admin]);
+    await db.query("insert into public.call_logs (order_id, caller_id, caller_role) values ($1, $2, 'runner')", [orderA, ids.runOn]);
+    expect(await visible(ids.alice, "select body from public.case_messages")).toEqual([{ body: "to alice" }]);
+    expect(await visible(ids.runOn, "select body from public.case_messages")).toEqual([{ body: "to runner" }]);
+    expect(await visible(ids.bob, "select id from public.cases")).toHaveLength(0);
+    expect(await visible(ids.alice, "select * from public.call_logs")).toHaveLength(0);
+    expect(await visible(ids.alice, "select * from public.incidents")).toHaveLength(0);
+    expect(await visible(ids.admin, "select * from public.call_logs")).toHaveLength(1);
+    for (const tbl of ["case_messages", "cases", "call_logs"]) await db.query(`delete from public.${tbl}`);
+    await db.query("update public.orders set runner_id = null where id = $1", [orderA]);
   });
 });
 

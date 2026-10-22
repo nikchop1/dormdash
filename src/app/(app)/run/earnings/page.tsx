@@ -9,13 +9,14 @@ import { getPricing } from "@/lib/settings";
 import { formatCents } from "@/lib/domain/pricing";
 import { fmtDate, fmtDateTime } from "@/lib/domain/time";
 import { EmptyState, List, Money, PageHeader, Row, SectionTitle, Tag } from "@/components/ui/misc";
-import { PayoutEmailForm } from "./payout-email-form";
+import { PayoutSetup } from "./payout-setup";
 
 export const metadata: Metadata = { title: "Earnings" };
 
 const KIND: Record<string, string> = { delivery_fee: "Delivery", tip: "Tip", cancellation_fee: "Cancellation fee", adjustment: "Adjustment" };
 
-export default async function EarningsPage() {
+export default async function EarningsPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+  const sp = await searchParams;
   const user = await requireUser();
   if (!["approved", "suspended"].includes(user.profile.runner_status)) redirect("/run");
   const [s, lines, payouts, settings, strikes] = await Promise.all([
@@ -46,21 +47,21 @@ export default async function EarningsPage() {
           <p className="tnum mt-1 text-small text-ink-3">{s.deliveriesWeek} deliveries · {formatCents(s.tipsWeekCents)} tips</p>
         </div>
         <div>
-          <p className="eyebrow">Ready for payout</p>
+          <p className="eyebrow">Sending now</p>
           <Money cents={s.availableCents} className="font-display text-title font-extrabold" />
         </div>
         <div>
-          <p className="eyebrow">On hold</p>
+          <p className="eyebrow">Waiting on review</p>
           <Money cents={s.pendingCents} className="font-display text-title font-extrabold" />
-          <p className="mt-1 text-small text-ink-3">{settings.payoutHoldHours}h dispute window</p>
+          <p className="mt-1 text-small text-ink-3">No-shows where your location wasn&rsquo;t verified</p>
         </div>
       </div>
 
       <section className="mt-8">
         <SectionTitle>Payout account</SectionTitle>
-        <PayoutEmailForm current={user.profile.payout_email} mode={paymentsMode} />
+        <PayoutSetup enabled={user.profile.payouts_enabled} started={!!user.profile.stripe_account_id} returning={sp.payouts === "return"} mode={paymentsMode} />
         <p className="mt-2 text-small text-ink-3">
-          Payouts go out daily once your balance is at least {formatCents(settings.minPayoutCents)} and past the hold. {paymentsMode === "demo" ? "Demo mode: payouts are simulated." : "Sent with PayPal Payouts."}
+          No holding period: you&rsquo;re paid the moment a customer gives you their PIN (or a no-show is confirmed). Stripe moves it to your bank on its normal schedule.
         </p>
       </section>
 
@@ -77,7 +78,7 @@ export default async function EarningsPage() {
               >
                 <span className="flex items-center gap-2">
                   <span className="font-medium">{KIND[l.kind] ?? l.kind}</span>
-                  {l.payout_id ? <Tag tone="success">Paid</Tag> : new Date(l.available_at) > new Date() ? <Tag>On hold</Tag> : <Tag tone="accent">Ready</Tag>}
+                  {l.payout_id ? <Tag tone="success">Paid</Tag> : l.held ? <Tag tone="warning">In review</Tag> : <Tag tone="accent">Sending</Tag>}
                 </span>
                 <span className="tnum block text-small text-ink-3">
                   {fmtDateTime(l.created_at)}

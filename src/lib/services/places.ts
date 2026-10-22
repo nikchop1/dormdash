@@ -13,6 +13,7 @@ export type Building = {
   lng: number;
   floor_count: number;
   door_requires_resident: boolean;
+  handoff_radius_m: number;
   active: boolean;
 };
 

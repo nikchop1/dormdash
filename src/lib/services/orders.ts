@@ -343,8 +343,8 @@ export type RunnerGate = {
   ok: boolean;
 };
 
-export async function runnerGate(runnerId: string): Promise<RunnerGate> {
-  const p = await q1<{ runner_status: string; status: string; phone: string | null; payouts_enabled: boolean; flagged_at: Date | null; email_ok: boolean }>(
+export async function runnerGate(runnerId: string, t: Queryable = { query: q }): Promise<RunnerGate> {
+  const [p] = await t.query<{ runner_status: string; status: string; phone: string | null; payouts_enabled: boolean; flagged_at: Date | null; email_ok: boolean }>(
     `select p.runner_status, p.status, p.phone, p.payouts_enabled, p.flagged_at,
        coalesce((select u.email_confirmed_at is not null from auth.users u where u.id = p.id), true) as email_ok
      from public.profiles p where p.id = $1`,
@@ -373,7 +373,7 @@ export async function levelFor(t: Queryable, runnerId: string, s: PricingSetting
 
 async function assertCanRun(t: Queryable, runnerId: string) {
   const [p] = await t.query<{ on_shift: boolean }>("select on_shift from public.profiles where id = $1 for update", [runnerId]);
-  const g = await runnerGate(runnerId);
+  const g = await runnerGate(runnerId, t);
   if (g.banned) throw new ApiError(403, "banned", "This runner account is banned.");
   if (g.flagged) throw new ApiError(403, "flagged", "Your account is under review, so claiming is paused.");
   if (!g.idApproved) throw new ApiError(403, "not_runner", "Only approved runners can claim jobs.");
@@ -754,8 +754,10 @@ export async function cancelOrder(actorId: string | null, actor: Actor, orderId:
     const o = await lockOrder(t, orderId);
     if (actor === "customer" && o.customer_id !== actorId) throw new ApiError(404, "not_found", "We couldn't find that order.");
     const paidTotal = o.charged_cents + o.credit_applied_cents;
+    // Already given back: cash refunds plus any credit issued on this order (e.g. a lobby floor-fee refund paid as credit).
+    const [{ credited }] = await t.query<{ credited: number }>("select coalesce(sum(amount_cents), 0)::int as credited from public.ledger where order_id = $1 and kind = 'credit_issued'", [o.id]);
     const terms = cancellationTerms(
-      { status: o.status, totalCents: paidTotal, refundedCents: o.refunded_cents + o.floor_fee_refunded_cents, createdAt: o.created_at },
+      { status: o.status, totalCents: paidTotal, refundedCents: o.refunded_cents + credited, createdAt: o.created_at },
       actor,
       new Date(),
       settings,

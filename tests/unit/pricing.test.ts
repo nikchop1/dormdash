@@ -55,7 +55,7 @@ describe("quoteDelivery", () => {
     expect(q.platformFeeCents).toBe(75);
     expect(q.runnerFeeCents).toBe(225);
     expect(q.tipCents).toBe(200);
-    expect(q.totalCents).toBe(500);
+    expect(q.totalCents).toBe(510); // + $0.10 delivery guarantee
     expect(q.runnerPayoutCents).toBe(425); // 100% of tip to the runner
   });
 
@@ -65,7 +65,7 @@ describe("quoteDelivery", () => {
     expect(q.deliveryFeeCents).toBe(150);
     expect(q.surgeFeeCents).toBe(50);
     expect(q.tipCents).toBe(100);
-    expect(q.totalCents).toBe(250);
+    expect(q.totalCents).toBe(260);
     expect(q.platformFeeCents).toBe(38); // round(150 * .25) = 37.5 -> 38
     expect(q.runnerFeeCents + q.platformFeeCents).toBe(q.deliveryFeeCents);
     expect(q.surgeLabel).toBe("Rush");
@@ -80,7 +80,7 @@ describe("quoteDelivery", () => {
     const q = quoteDelivery({ distanceMiles: 0.01, floor: 1, tipCents: -500, surge: null, settings: S });
     if (isQuoteError(q)) throw new Error("unexpected");
     expect(q.tipCents).toBe(0);
-    expect(q.totalCents).toBe(100);
+    expect(q.totalCents).toBe(110);
   });
 
   it("respects a configured platform fee", () => {
